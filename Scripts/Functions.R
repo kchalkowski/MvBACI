@@ -1241,7 +1241,7 @@ RunMovementModels<-function(dat,
   
   sf_locs=st_as_sf(geo,coords=c("x_","y_"),crs=st_crs(6393))
   
-  ngeo=sf_locs %>% dplyr::group_by(uniqueid,period,season,segIDs) |> tidyr::nest()
+  ngeo=sf_locs %>% dplyr::group_by(uniqueid,period,season,segID) |> tidyr::nest()
   
   ngeo=ngeo %>% mutate(nrows=map(data,nrow))
   
@@ -1272,66 +1272,6 @@ RunMovementModels<-function(dat,
   
 }
 
-#same as above but needs to be in loop for troubleshooting
-RunCtrlMovementModels<-function(geo_ctrls2,
-                            herd="wah"){
-  #2182 for ctrls
-  geo=geo_ctrls2[geo_ctrls2$herd==herd,]
-  
-  sf_locs=st_as_sf(geo,coords=c("x_","y_"),crs=st_crs(6393))
-  
-  ngeo=sf_locs %>% dplyr::group_by(uniqueid,period,season,segIDs) |> tidyr::nest()
-  
-  ngeo=ngeo %>% mutate(nrows=map(data,nrow))
-  
-  #updating this to 40 after singularity in traj with 36 pts in ctrls
-  ngeo=ngeo[ngeo$nrows>10,]
-  
-  #tbl_locs_fit <- ngeo %>% 
-  #  dplyr::mutate(fit = furrr::future_pmap(list(d = data),
-  #                                         fit_crawl),
-  #                params = map(fit, crawl::tidy_crwFit))
-  
-  ngeo$fit=vector(mode="list",length=nrow(ngeo))
-  ngeo$params=vector(mode="list",length=nrow(ngeo))
-#next step: work on specifying priors and fixed parameters correctly as in tutorial/vignette
-  for(i in 1:nrow(ngeo)){
-    print(i)
-    #ngeo$fit[[i]]=fit_crawl(ngeo$data[i][[1]])
-    d=ngeo$data[i][[1]]
-    ngeo$fit[[i]] <- crawl::crwMLE(
-      mov.model =  ~ 1,
-      if (any(colnames(d) == "activity")) {
-        activity <- ~ I(activity)
-      } else {activity <- NULL},
-      data = d,
-      seed=TRUE,
-      method = "Nelder-Mead",
-      Time.name = "t_",
-      prior = prior,
-      attempts = 10,
-      retrySD=10,
-      control = list(
-        trace = 0
-      ),
-      #skip_check=TRUE,
-      initialSANN = list(
-        maxit = 1500,
-        trace = 0
-      )
-    )
-    
-    print("parms")
-    if(all(class(ngeo$fit[[i]])=="crwFit")&!(all(is.null(ngeo$fit[[i]])))){
-    ngeo$params[[i]]=crawl::tidy_crwFit(ngeo$fit[[i]])
-    }
-    
-  }
-  
-  return(ngeo)
-  
-}
-
 getdist_x<-function(data){
   mean(as.numeric(st_coordinates(data)[,1]-lag(st_coordinates(data)[,1])),na.rm=T)
 }
@@ -1357,7 +1297,7 @@ CalculateMeanVelocity<-function(tbl_locs_fit){
 CombineModelParams<-function(tbl_locs_fit2){
   
   #unnest
-  tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,segIDs,params,dist_x,dist_y,difft))
+  tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,segID,params,dist_x,dist_y,difft))
   
   tbl_locs_fit3$vx=tbl_locs_fit3$dist_x/tbl_locs_fit3$difft
   tbl_locs_fit3$vy=tbl_locs_fit3$dist_y/tbl_locs_fit3$difft
@@ -1367,7 +1307,7 @@ CombineModelParams<-function(tbl_locs_fit2){
     tbl_locs_fit3[,c("uniqueid",
                    "season",
                    "period",
-                   "segIDs",
+                   "segID",
                    "term",
                    "estimate",
                    "std.error",
@@ -1394,7 +1334,7 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
           tidyr::pivot_wider(
             names_from=period,
             values_from=vx,
-            id_cols=c(uniqueid,season,segIDs))
+            id_cols=c(uniqueid,season,segID))
         datwb$ba=datwb$after-datwb$before
         x_axis_title="x-coordinate velocity difference after road interaction (m)"
       }
@@ -1403,7 +1343,7 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
           tidyr::pivot_wider(
             names_from=period,
             values_from=vy,
-            id_cols=c(uniqueid,season,segIDs))
+            id_cols=c(uniqueid,season,segID))
         datwb$ba=datwb$after-datwb$before
         x_axis_title="y-coordinate velocity difference after road interaction (m)"
       }
@@ -1413,7 +1353,7 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
       tidyr::pivot_wider(
         names_from=period,
         values_from=estimate,
-        id_cols=c(uniqueid,season,segIDs))
+        id_cols=c(uniqueid,season,segID))
     datwb$ba=datwb$after-datwb$before
     x_axis_title=paste0(response," difference after road interaction")
     
@@ -1423,7 +1363,7 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
   datwb %>% 
     ggplot() +
     geom_point(
-      aes(x=ba, y=segIDs), 
+      aes(x=ba, y=segID), 
       size = 4
     ) + 
     facet_wrap(~season) +
@@ -1431,13 +1371,3 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
     labs(x=x_axis_title)
   
 }
-
-
-#FUnction
-
-
-
-
-
-
-
