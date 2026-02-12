@@ -1241,7 +1241,14 @@ RunMovementModels<-function(dat,
   
   sf_locs=st_as_sf(geo,coords=c("x_","y_"),crs=st_crs(6393))
   
-  ngeo=sf_locs %>% dplyr::group_by(uniqueid,period,season,segID) |> tidyr::nest()
+  ngeo=sf_locs %>% dplyr::group_by(uniqueid,
+                                   period,
+                                   season,
+                                   trajID,
+                                   traj.start,
+                                   traj.end,
+                                   traj.dur,
+                                   segID) |> tidyr::nest()
   
   ngeo=ngeo %>% mutate(nrows=map(data,nrow))
   
@@ -1307,6 +1314,10 @@ CombineModelParams<-function(tbl_locs_fit2){
     tbl_locs_fit3[,c("uniqueid",
                    "season",
                    "period",
+                   "trajID",
+                   "traj.start",
+                   "traj.end",
+                   "traj.dur",
                    "segID",
                    "term",
                    "estimate",
@@ -1371,3 +1382,17 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
     labs(x=x_axis_title)
   
 }
+
+GetTrajDates<-function(geo){
+  geo_out=geo %>% 
+    dplyr::group_by(trajID) %>% 
+    dplyr::mutate(traj.start=min(t_),
+                  traj.end=max(t_),
+                  traj.dur=difftime(max(t_),
+                                    min(t_),
+                                    units="days")) %>% 
+ return(geo_out)
+  
+}
+
+

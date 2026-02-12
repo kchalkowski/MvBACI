@@ -187,8 +187,12 @@ list(
   #Sometimes trajectories overlap seasons. This function creates a new unique segment ID that assigns an ID to each seasonal portion of the segment for iterating
     #Input:
     #Output:
-  tar_target(its_seq2,AssignClusterSeasons(its_seq)),
-  tar_target(geo_ctrls2,AssignClusterSeasons(geo_ctrls)),
+  tar_target(its_seq02,AssignClusterSeasons(its_seq)),
+  tar_target(geo_ctrls02,AssignClusterSeasons(geo_ctrls)),
+  
+  ### Get start/end date for each traj for counterfac matching
+  tar_target(its_seq2,GetTrajDates(its_seq02)),
+  tar_target(geo_ctrls2,GetTrajDates(geo_ctrls02)),
   
   ### Get movement model parameters -------
   #This runs movement models for each unique segment
