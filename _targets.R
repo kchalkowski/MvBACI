@@ -278,6 +278,9 @@ list(
   #plot sigma velocity diffs
   tar_target(plot_sigma_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln sigma (Intercept)")),
   #plot tau velocity diffs
-  tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)"))
+  tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)")),
+  
+  #Plot dates between control/treatment trajectories before matching
+  tar_target(datespan_ctrl_trt,PlotTrajDates(geo_its,geo_ctrl))
   
   )

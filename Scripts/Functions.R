@@ -1395,4 +1395,61 @@ GetTrajDates<-function(geo){
   
 }
 
+PlotTrajDates<-function(geo_its,geo_ctrl){
+  geo_its2=geo_its %>% dplyr::select(uniqueid,
+                        herd,
+                        season,
+                        period,
+                        trajID,
+                        segID,
+                        traj.start,
+                        traj.end,
+                        traj.dur) %>% 
+                        unique() %>% 
+                        as.data.frame()
+  geo_ctrl2=geo_ctrl %>% dplyr::select(uniqueid,
+                                     herd,
+                                     season,
+                                     period,
+                                     trajID,
+                                     segID,
+                                     traj.start,
+                                     traj.end,
+                                     traj.dur) %>% 
+                          unique() %>% 
+                          as.data.frame()
+  
+  geo_its2$trajID<-as.character(geo_its2$trajID)
+  geo=dplyr::bind_rows(geo_its2,geo_ctrl2)
+  
+  geo$ct="trt"
+  geo$ct[grep("ctrl",geo$trajID)]="ctrl"
+  
+  #for now while building pipeline, subset to wah
+  geo=geo[geo$herd=="wah",]
+  
+  #order factor by date
+  geo$trajID<-as.factor(geo$trajID)
+  geo=geo %>%
+    mutate(trajID = fct_reorder(trajID, traj.start))
+  
+  #for traj plotting, subset and get unique traj vals
+  geot=geo %>% dplyr::select(trajID,traj.start,traj.end,ct) %>% unique()
+  
+  p1=ggplot(geot) +
+    geom_segment(aes(x = traj.start, xend = traj.end,
+                     y = trajID, yend = trajID, color=ct),linewidth=1,alpha=0.5) +
+    theme(axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          axis.text.x=element_text(angle=90,vjust=0.5,hjust=1),
+          panel.grid.major.x = element_line(color = "grey",
+                                          linewidth = 0.3,
+                                          linetype = 2))+
+    scale_x_date(date_breaks="12 month",date_labels="%b %Y")+
+    xlab("Dates")+
+    labs(color="Ctrl/Treatment")
+  
+  return(p1)
+  
+}
 
