@@ -169,7 +169,7 @@ list(
       #*herd, string indicating herd, matches herd column in geo_c
   tar_target(geo_cs,assign_season(geo_c,t_,seasons,herd="wah")),
 
-  ### Output intersectons with period (before, after etc.) for each set ------
+  ### Output intersections with period (before, after etc.) for each set ------
   #This function uses the uniqueid/clusterID to pull selected intersections and associated before/after trajs, and labels trajs by period (before, during, after)
     #Input:
       #*geo_cs
@@ -184,7 +184,7 @@ list(
   tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
   
   ### Assign season to each unique track segment using set of criteria ------
-  #Sometimes trajectories overlap seasons. This function creates a new unique segment ID that assigns a uniqueid to each seasonal portion of the segment
+  #Sometimes trajectories overlap seasons. This function creates a new unique segment ID that assigns an ID to each seasonal portion of the segment for iterating
     #Input:
     #Output:
   tar_target(its_seq2,AssignClusterSeasons(its_seq)),

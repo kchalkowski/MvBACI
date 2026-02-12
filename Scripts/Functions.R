@@ -1104,17 +1104,15 @@ FormatClusterSets<-function(geo_cs,ints_its){
     ID=ints_its[ints_its$uniqueid_c==cIDs[c],]$uniqueid
     cnum=ints_its[ints_its$uniqueid_c==cIDs[c],]$clustID
     cdf=geo_cs[geo_cs$uniqueid==ID,]
-    #    if(length(ints)!=0){ #if any intersections
-    #for(i in 1:length(ints)){
-    #cdurs_i=data.frame("dur_before"=NA,"dur_after"=NA)
-    #order of assignment to before/after gets swithced if pos/neg
+    
+    #order of assignment to before/after gets switched if pos/neg
     if(first(cdf$clustID)<0){
       cdf_i=cdf[cdf$clustID==cnum,]
       cdf_before=cdf[cdf$clustID==-(cnum),]
       cdf_after=cdf[cdf$clustID==-(cnum+1),]
     } 
     
-    #order of assignment to before/after gets swithced
+    #order of assignment to before/after gets switched
     if(first(cdf$clustID)>0){
       cdf_i=cdf[cdf$clustID==cnum,]
       cdf_before=cdf[cdf$clustID==-(cnum-1),]
@@ -1125,20 +1123,13 @@ FormatClusterSets<-function(geo_cs,ints_its){
     cdf_i$period="during"
     cdf_after$period="after"
     
-    #add id for whole cluster, incl each period
-    cdf_before$segID=c
-    cdf_i$segID=c
-    cdf_after$segID=c
+    #add id for whole trajectory, incl each period
+    cdf_before$trajID=c
+    cdf_i$trajID=c
+    cdf_after$trajID=c
     
     its_seq=rbind(cdf_before,cdf_i)
     its_seq=rbind(its_seq,cdf_after)
-    
-    
-    
-    #} #for i in intersections
-    
-    
-    #    } #if length ints!=0
     
     if(c==1){
       out=its_seq
@@ -1169,10 +1160,9 @@ FormatCtrls<-function(geo_cs,ctrls,herd="wah"){
     
     cdf$period="before"
     
-    #add id for whole cluster, incl each period
-    cdf$segID=paste0("ctrl",c)
+    #add id for whole trajectory
+    cdf$trajID=paste0("ctrl",c)
     
-
     if(c==1){
       out=cdf
     } else{
@@ -1187,9 +1177,8 @@ FormatCtrls<-function(geo_cs,ctrls,herd="wah"){
 
 AssignClusterSeasons<-function(its_seq){
   
-  its_seq2=its_seq %>% group_by(segIDs=consecutive_id(segID,season))
+  its_seq2=its_seq %>% group_by(segID=consecutive_id(trajID,period,season))
   its_seq2=as.data.frame(its_seq2)
-  #season_ct=its_seq %>% dplyr::group_by(segIDs) %>% dplyr::count()
   return(its_seq2)
   
 }
