@@ -1,5 +1,5 @@
 ---
-title: "MvBACI Readme"
+title: "MvBACI"
 output: github_document
 ---
 ```{r echo=FALSE, include=FALSE}
@@ -11,7 +11,7 @@ output: github_document
 
 ```{bash include=FALSE, echo=FALSE}
 export CHROME_DEVEL_SANDBOX=/opt/google/chrome/chrome-sandbox
-mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.png -w 1000 --scale 2
+mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.png -t dark -b transparent -w 1000 --scale 2
 ```
 
 ```{r setup, include=FALSE}
