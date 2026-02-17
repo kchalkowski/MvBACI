@@ -5,4 +5,4 @@ MvBACI
 
 ## Pipeline
 
-<img src="Documents/mvBACIpipeline.svg" width="1000" />
+<img src="Documents/mvBACIpipeline.svg" width="1500" />
