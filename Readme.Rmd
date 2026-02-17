@@ -2,16 +2,17 @@
 title: "MvBACI"
 output: github_document
 ---
-```{r echo=FALSE, include=FALSE}
-#Sys.getenv("PATH")
-#Sys.setenv(PATH=paste("/run/user/1001/fnm_multishells/449478_1771356157082/bin", Sys.getenv("PATH"), sep=":"))
-#Sys.getenv("PATH")
+
+```{css, echo=FALSE}
+body {
+  background-color: #000000;
+}
 ```
 
 
 ```{bash include=FALSE, echo=FALSE}
 export CHROME_DEVEL_SANDBOX=/opt/google/chrome/chrome-sandbox
-mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.png -t dark -b 000000 -w 1000 --scale 2
+mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.svg -t dark -b 000000 --scale 2
 ```
 
 ```{r setup, include=FALSE}
@@ -22,6 +23,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Overview
 
 ## Pipeline
-```{r figurename, echo=FALSE, dpi=300}
-knitr::include_graphics("Documents/mvBACIpipeline.png")
+```{r figurename, echo=FALSE, dpi=300, class.source="badCode", out.width=1000}
+knitr::include_graphics("Documents/mvBACIpipeline.svg")
 ```
