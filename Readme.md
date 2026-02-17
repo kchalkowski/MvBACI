@@ -1,12 +1,6 @@
 MvBACI
 ================
 
-<style type="text/css">
-body {
-  background-color: #000000;
-}
-</style>
-
 ## Overview
 
 ## Pipeline

@@ -3,11 +3,6 @@ title: "MvBACI"
 output: github_document
 ---
 
-```{css, echo=FALSE}
-body {
-  background-color: #000000;
-}
-```
 
 
 ```{bash include=FALSE, echo=FALSE}
