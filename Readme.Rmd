@@ -1,30 +1,27 @@
 ---
-title: "Untitled"
-author: "TC"
-date: "8/22/2018"
+title: "MvBACI Readme"
 output: github_document
 ---
+```{r echo=FALSE, include=FALSE}
+#Sys.getenv("PATH")
+#Sys.setenv(PATH=paste("/run/user/1001/fnm_multishells/449478_1771356157082/bin", Sys.getenv("PATH"), sep=":"))
+#Sys.getenv("PATH")
+```
+
+
+```{bash include=FALSE, echo=FALSE}
+export CHROME_DEVEL_SANDBOX=/opt/google/chrome/chrome-sandbox
+mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.png -w 1000 --scale 2
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#library(DiagrammeR)
 ```
 
-## R Markdown
+## Overview
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+## Pipeline
+```{r figurename, echo=FALSE, dpi=300}
+knitr::include_graphics("Documents/mvBACIpipeline.png")
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

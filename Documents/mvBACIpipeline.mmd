@@ -1,0 +1,62 @@
+---
+config:
+  flowchart:
+    htmlLabels: false
+---
+
+flowchart TB
+		geolocdat["`Geolocation data`"]
+		roaddat["`Road shapefiles`"]
+		roadbuff["`20 km buffer around roads`"]
+		overlay["`Overlay geolocation <br> points with road buffers`"]
+		procdata["`Get treatment trajectories: <br> trajectories that encounter <br> a road buffer`"]
+		procdatact["`Get control trajectories: <br> trajectories that do not <br> encounter a road buffer for <br> minimum span of time`"]
+		filterdata["`Filter treatments: <br> minimum duration for <br> before/after <br> road crossing`"]
+    OUmod["`Fit iOU model (crawl) <br> movement trajectories, <br> split by period <br> (before, during, after) <br> and season`"]
+    counterfac["`Counterfactual pairing <br> of each treatment trajectory <br> to a similar ctrl trajectory`"]
+    countfacdist["`Get propensity scores <br>and filter`"]
+    BACIfilter["`throw out trajectories <br> that don't meet BACI <br> assumptions (determine <br> cutoff a priori)`"]
+    Linearmodels["`Compare model parameter <br> differences across season <br> and road interaction <br> in linear models`"]
+		buffersens["`Sensitivity analysis of <br> buffer sizes`"]
+		countfacsample["`Evaluate whether have <br>enough samples,<br> else may need to identify<br> counterfac pairings <br>with env covs`"]		
+    propscore["`Compare couple<br> propensity scores,<br> determine which to use`"]
+    simdata["`Simulate geolocation <br> data to facilitate <br>code sharing`"]
+    corrfilter["`Remove caribou with correlated movement paths`"]
+    analys["`Final data frame to use for modeling. Each row is a trajectory, with parameters describing it's movement, and covariates describing season, period, ctrl/trt, caribou ID`"]
+    
+    geolocdat@{ shape: notch-rect }
+    roaddat@{ shape: notch-rect }
+    analys@{ shape: notch-rect }
+    
+    todo["`To do`"]
+    inprog["`In progress`"]
+    Done["`Code functioning`"]
+    
+    todo:::todo
+    inprog:::current
+    Done:::done
+    
+    roadbuff-.-buffersens:::todo
+    counterfac-.-countfacsample:::done
+    countfacdist-.-propscore:::todo
+    
+    geolocdat--> simdata:::todo
+    simdata --> overlay    
+    roaddat --> roadbuff:::done
+		roadbuff --> overlay:::done
+		geolocdat --> overlay
+    overlay --> procdata:::done
+    overlay --> procdatact:::done
+    procdata --> filterdata:::done
+    filterdata --> OUmod:::done
+    procdatact --> OUmod
+    OUmod --> counterfac:::current
+    counterfac --> corrfilter:::todo
+    corrfilter --> countfacdist:::todo
+    countfacdist --> BACIfilter:::todo
+    BACIfilter --> analys
+    analys --> Linearmodels:::todo
+    
+    classDef todo fill:#880808
+    classDef current fill:#B59410
+    classDef done fill:#06402B
