@@ -1,0 +1,12 @@
+.Rdata
+.Ruserdata
+Scratch
+Input
+_targets/
+_targets.yaml
+Plots
+Try_FitMOUF.R
+Scripts/BaBA_caribou2.R
+Output/
+Modeling_Scratch.R
+.Rhistory
