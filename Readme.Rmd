@@ -7,7 +7,7 @@ output: github_document
 
 ```{bash include=FALSE, echo=FALSE}
 export CHROME_DEVEL_SANDBOX=/opt/google/chrome/chrome-sandbox
-mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.svg -t dark -b 000000 --scale 2
+mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.svg -t dark -b 24292e --scale 2
 ```
 
 ```{r setup, include=FALSE}
@@ -18,6 +18,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Overview
 
 ## Pipeline
-```{r figurename, echo=FALSE, dpi=300, class.source="badCode", out.width=1000}
+```{r figurename, echo=FALSE, dpi=300, out.width=1000}
 knitr::include_graphics("Documents/mvBACIpipeline.svg")
 ```
