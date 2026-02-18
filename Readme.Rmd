@@ -15,6 +15,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Overview
 The purpose of this pipeline is to conduct an analysis that evalutes caribou movement before and after road interacations using a BACI (before-after-control-impact) framework, with counterfactual pairings of control (no road interaction) and treatment (interaction with road) trajectories.
 
+## Questions
+
+* How does caribou movement (e.g., velocity, directionality) change as a result of road interactions? 
+* Do movement changes in response to roads depend on season?
+* Do movement changes in response to roads persist across seasons?
+
 ## About this repo
 This pipeline is made using the targets pipeline toolkit.
 
