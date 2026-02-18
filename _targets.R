@@ -42,7 +42,9 @@ tar_option_set(packages = c("tidyr",
                             "crawl",
                             "pander",
                             "furrr",
-                            "forcats"))
+                            "forcats",
+                            "RcppHungarian",
+                            "data.table"))
 
 # Pipeline ---------------------------------------------------------
 
@@ -219,6 +221,13 @@ list(
     #may want to add other criteria later
   tar_target(matches,Match_Ctrl_Trt(tbl_locs_fit3,ctrl_locs_fit3)),
   
+  ### Remove duplicated pairs
+    #uses Hungarian matching to maximize overlap between dates
+    #if/when implement additional covariates, want to use propensity score matching probably
+    #other trimming (ie correlated movement paths) would be done prior to this step
+  tar_target(pairs,Hungarian_matching(matches)),
+  
+  ### Filter out unpaired and trim durations of pairs accordingly
   
   
   ## Visualization --------

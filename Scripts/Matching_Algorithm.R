@@ -72,11 +72,11 @@ Match_Ctrl_Trt<-function(tbl_locs_fit3,ctrl_locs_fit3){
         
     } #end c for loop
     
-    max_ctrl_IDs=ctrl_IDs[which(dur_c==max(dur_c))]
-    df_t=data.frame(matrix(nrow=length(max_ctrl_IDs),ncol=3))
+    #max_ctrl_IDs=ctrl_IDs[which(dur_c==max(dur_c))]
+    df_t=data.frame(matrix(nrow=length(ctrl_IDs),ncol=3))
     df_t[,1]=trt_IDs[t]
-    df_t[,2]=max_ctrl_IDs
-    df_t[,3]=max(dur_c)
+    df_t[,2]=ctrl_IDs
+    df_t[,3]=dur_c
     
     #if t==1
     #df=df_t
