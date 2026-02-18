@@ -41,7 +41,8 @@ tar_option_set(packages = c("tidyr",
                             "fitdistrplus",
                             "crawl",
                             "pander",
-                            "furrr"))
+                            "furrr",
+                            "forcats"))
 
 # Pipeline ---------------------------------------------------------
 
@@ -213,6 +214,13 @@ list(
   tar_target(tbl_locs_fit3,CombineModelParams(tbl_locs_fit2)),
   tar_target(ctrl_locs_fit3,CombineModelParams(ctrl_locs_fit2)),
     
+  ### Match control and treatment trajectories
+    #for now this is just with the date spans
+    #may want to add other criteria later
+  tar_target(matches,Match_Ctrl_Trt(tbl_locs_fit3,ctrl_locs_fit3)),
+  
+  
+  
   ## Visualization --------
   
   ### Make plots, for each herd, showing spread by season -------
@@ -281,6 +289,6 @@ list(
   tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)")),
   
   #Plot dates between control/treatment trajectories before matching
-  tar_target(datespan_ctrl_trt,PlotTrajDates(geo_its,geo_ctrl))
+  tar_target(datespan_ctrl_trt,PlotTrajDates(tbl_locs_fit3,ctrl_locs_fit3))
   
   )

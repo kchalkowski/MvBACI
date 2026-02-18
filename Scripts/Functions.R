@@ -1397,7 +1397,6 @@ GetTrajDates<-function(geo){
 
 PlotTrajDates<-function(geo_its,geo_ctrl){
   geo_its2=geo_its %>% dplyr::select(uniqueid,
-                        herd,
                         season,
                         period,
                         trajID,
@@ -1408,7 +1407,6 @@ PlotTrajDates<-function(geo_its,geo_ctrl){
                         unique() %>% 
                         as.data.frame()
   geo_ctrl2=geo_ctrl %>% dplyr::select(uniqueid,
-                                     herd,
                                      season,
                                      period,
                                      trajID,
@@ -1426,7 +1424,7 @@ PlotTrajDates<-function(geo_its,geo_ctrl){
   geo$ct[grep("ctrl",geo$trajID)]="ctrl"
   
   #for now while building pipeline, subset to wah
-  geo=geo[geo$herd=="wah",]
+  #geo=geo[geo$herd=="wah",]
   
   #order factor by date
   geo$trajID<-as.factor(geo$trajID)
