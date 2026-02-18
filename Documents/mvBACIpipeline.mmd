@@ -4,7 +4,16 @@ config:
     htmlLabels: false
 ---
 
+
 flowchart TB
+subgraph legend
+	direction LR
+    todo["`To do`"]:::todo
+    current["`Current`"]:::current
+    done["`Done`"]:::done
+	end
+	subgraph pipeline
+	direction TB
 		geolocdat["`Geolocation data`"]
 		roaddat["`Road shapefiles`"]
 		roadbuff["`20 km buffer around roads`"]
@@ -48,6 +57,8 @@ flowchart TB
     countfacdist --> BACIfilter:::todo
     BACIfilter --> analys
     analys --> Linearmodels:::todo
+    
+    end
     
     classDef todo fill:#880808
     classDef current fill:#B59410
