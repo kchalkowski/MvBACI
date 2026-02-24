@@ -23,15 +23,16 @@ subgraph legend
 		filterdata["`Filter treatments: <br> minimum duration for <br> before/after <br> road crossing`"]
     OUmod["`Fit iOU model (crawl) <br> movement trajectories, <br> split by period <br> (before, during, after) <br> and season`"]
     counterfac["`Counterfactual pairing <br> of each treatment trajectory <br> to a similar ctrl trajectory`"]
-    countfacdist["`Get propensity scores <br>and filter`"]
     BACIfilter["`throw out trajectories <br> that don't meet BACI <br> assumptions (determine <br> cutoff a priori)`"]
     Linearmodels["`Compare model parameter <br> differences across season <br> and road interaction <br> in linear models`"]
 		buffersens["`Sensitivity analysis of <br> buffer sizes`"]
 		countfacsample["`Evaluate whether have <br>enough samples,<br> else may need to identify<br> counterfac pairings <br>with env covs`"]		
-    propscore["`Compare couple<br> propensity scores,<br> determine which to use`"]
     simdata["`Simulate geolocation <br> data to facilitate <br>code sharing`"]
-    corrfilter["`Remove caribou with correlated movement paths`"]
+    corrfilter["`Remove correlated <br>movement paths`"]
     analys["`Final data frame to use for modeling. Each row is a trajectory, with parameters describing it's movement, and covariates describing season, period, ctrl/trt, caribou ID`"]
+    filterpairs["`Filter trajectories`"]
+    Hungarian["`Match ctrl and trt<br> with Hungarian solver`"]
+    checkpseudo["`Check for road <br>intxn repetition`"]
     
     geolocdat@{ shape: notch-rect }
     roaddat@{ shape: notch-rect }
@@ -39,8 +40,10 @@ subgraph legend
     
     roadbuff-.-buffersens:::todo
     counterfac-.-countfacsample:::done
-    countfacdist-.-propscore:::todo
-    
+    filterpairs-.-corrfilter:::todo
+    filterpairs-.-BACIfilter:::todo
+    filterpairs-.-checkpseudo:::todo
+
     geolocdat--> simdata:::todo
     simdata --> overlay    
     roaddat --> roadbuff:::done
@@ -49,13 +52,12 @@ subgraph legend
     overlay --> procdata:::done
     overlay --> procdatact:::done
     procdata --> filterdata:::done
-    filterdata --> OUmod:::done
-    procdatact --> OUmod
-    OUmod --> counterfac:::current
-    counterfac --> corrfilter:::todo
-    corrfilter --> countfacdist:::todo
-    countfacdist --> BACIfilter:::todo
-    BACIfilter --> analys
+    procdatact --> filterpairs:::todo
+    filterdata --> filterpairs
+    filterpairs --> Hungarian:::done
+    Hungarian --> OUmod:::done
+    OUmod --> counterfac:::done
+    counterfac --> analys
     analys --> Linearmodels:::todo
     
     end

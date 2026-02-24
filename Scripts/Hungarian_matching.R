@@ -15,31 +15,42 @@
 #matches<-tar_read(matches)
 
 Hungarian_matching<-function(matches){
-matches$X1<-as.character(matches$X1)
-matches$X2<-as.character(matches$X2)
-matches$X3<-as.numeric(matches$X3)
+  
+matches$ctrl_id<-as.character(matches$ctrl_id)
+matches$trt_id<-as.character(matches$trt_id)
+matches$overlaps<-as.numeric(matches$overlaps)
+
+#trim matches
+#matches=matches[matches$X3>0,]
+#test=matches %>% group_by(X2) %>% dplyr::summarise(ss=sum(X3>0),max(X3))
 
 #need remove row/colnames
-Wmat=data.table::dcast(as.data.table(matches,keep.rownames=FALSE),X1~X2,value.var="X3")
+Wmat=data.table::dcast(as.data.table(matches,keep.rownames=FALSE),ctrl_id~trt_id,value.var="overlaps")
 Wmat=as.matrix(Wmat)
+rownames(Wmat)=Wmat[,1]
 Wmat=Wmat[,2:ncol(Wmat)]
 storage.mode(Wmat)="numeric"
+Wmat[is.na(Wmat)]<-0
 Wmat=Wmat*-1 #flip the sign, since algo below minimizes cost instead of maximizes weight
 
-#Wmat rows are treatment
-#Wmat cols are ctrl
+#Wmat rows are ctrl
+#Wmat cols are treatment
 Wmat_optim=HungarianSolver(Wmat)
 
 #1st col is treatment
 #second col is contrl
 pairs=Wmat_optim$pairs
-
+matches<-as.data.frame(matches)
 #need convert pairs (which has row/col numbers) to IDs
-rownames(Wmat)=unique(matches[,1])
 pairs=as.data.frame(pairs)
-colnames(pairs)=c("trt","ctrl")
-pairs$trt=rownames(Wmat)
-pairs$ctrl=colnames(Wmat)[pairs$ctrl]
+colnames(pairs)=c("ctrl","trt")
+
+pairs$ctrl=rownames(Wmat)
+pairs=pairs[pairs$trt>0,]
+pairs$trt=colnames(Wmat)[pairs$trt]
+pairs$pairID=paste(pairs$ctrl,pairs$trt,sep="_")
+matches$pairID=paste(matches$ctrl,matches$trt,sep="_")
+pairs=left_join(pairs,matches,by="pairID")
 
 return(pairs)
 }

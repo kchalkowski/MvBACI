@@ -1302,7 +1302,6 @@ CalculateMeanVelocity<-function(tbl_locs_fit){
 }
 
 CombineModelParams<-function(tbl_locs_fit2){
-  
   #unnest
   tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,segID,params,dist_x,dist_y,difft))
   
@@ -1312,21 +1311,21 @@ CombineModelParams<-function(tbl_locs_fit2){
   #isolate to model params
   tbl_locs_fit3=
     tbl_locs_fit3[,c("uniqueid",
-                   "season",
-                   "period",
-                   "trajID",
-                   "traj.start",
-                   "traj.end",
-                   "traj.dur",
-                   "segID",
-                   "term",
-                   "estimate",
-                   "std.error",
-                   "conf.low",
-                   "conf.high",
-                   "vx",
-                   "vy"
-                   )]
+                     "season",
+                     "period",
+                     "trajID",
+                     "traj.start",
+                     "traj.end",
+                     "traj.dur",
+                     "segID",
+                     "term",
+                     "estimate",
+                     "std.error",
+                     "conf.low",
+                     "conf.high",
+                     "vx",
+                     "vy"
+    )]
   
   #remove AIC/logLik rows
   tbl_locs_fit3=tbl_locs_fit3[(tbl_locs_fit3$term!="AIC"),]
@@ -1341,45 +1340,68 @@ Plot_Diffs_by_Season<-function(dat,response="ln sigma (Intercept)",velocity=FALS
   if(velocity){
     if(!missing(v)){
       if(v=="vx"){
-        datwb=dat %>% dplyr::filter(term=="ln sigma (Intercept)") %>%
+        datwb=dat %>% dplyr::filter(term==response) %>%
           tidyr::pivot_wider(
             names_from=period,
-            values_from=vx,
-            id_cols=c(uniqueid,season,segID))
+            values_from=estimate,
+            id_cols=c(pairID,uniqueid,season,type,trajID))
         datwb$ba=datwb$after-datwb$before
-        x_axis_title="x-coordinate velocity difference after road interaction (m)"
+        x_axis_title=paste0(response," difference after road interaction")
+        datwb %>% 
+          ggplot() +
+          geom_point(
+            aes(x=ba, 
+                y=pairID,
+                col=type), 
+            size = 4
+          ) + 
+          facet_wrap(~season) +
+          geom_vline(xintercept=0)+
+          labs(x=x_axis_title)
       }
       if(v=="vy"){
-        datwb=dat %>% dplyr::filter(term=="ln sigma (Intercept)") %>%
+        datwb=dat %>% dplyr::filter(term==response) %>%
           tidyr::pivot_wider(
             names_from=period,
             values_from=vy,
-            id_cols=c(uniqueid,season,segID))
+            id_cols=c(pairID,uniqueid,season,type,trajID))
         datwb$ba=datwb$after-datwb$before
-        x_axis_title="y-coordinate velocity difference after road interaction (m)"
+        x_axis_title=paste0(response," difference after road interaction")
+        datwb %>% 
+          ggplot() +
+          geom_point(
+            aes(x=ba, 
+                y=pairID,
+                col=type), 
+            size = 4
+          ) + 
+          facet_wrap(~season) +
+          geom_vline(xintercept=0)+
+          labs(x=x_axis_title)
+        
       }
     }
   } else{
-    datwb=dat %>% dplyr::filter(term==response) %>%
+    datwb=dat %>% dplyr::filter(term==response) %>% #dplyr::filter(abs(estimate)<100) %>%
       tidyr::pivot_wider(
         names_from=period,
-        values_from=estimate,
-        id_cols=c(uniqueid,season,segID))
+        values_from=vx,
+        id_cols=c(pairID,uniqueid,season,type,trajID))
     datwb$ba=datwb$after-datwb$before
     x_axis_title=paste0(response," difference after road interaction")
+    datwb %>% 
+      ggplot() +
+      geom_point(
+        aes(x=ba, 
+            y=pairID,
+            col=type), 
+        size = 4
+      ) + 
+      facet_wrap(~season) +
+      geom_vline(xintercept=0)+
+      labs(x=x_axis_title)
     
   }
-  
-  
-  datwb %>% 
-    ggplot() +
-    geom_point(
-      aes(x=ba, y=segID), 
-      size = 4
-    ) + 
-    facet_wrap(~season) +
-    geom_vline(xintercept=0)+
-    labs(x=x_axis_title)
   
 }
 
@@ -1451,3 +1473,374 @@ PlotTrajDates<-function(geo_its,geo_ctrl){
   
 }
 
+#helper function
+changeperiod=function(df){
+  df[df$type=="ctrl",which(colnames(df)=="period")]=
+    df[df$type=="trt",which(colnames(df)=="period")][[1]][1]
+  return(df)
+}
+
+#combine
+#and get new cutoff dates with just overlap
+#filter geolocation data
+#tar_target(tbl_locs,Filter_Pairs(its_seq2,geo_ctrls2,matches)),
+
+Filter_Pairs<-function(its_seq,geo_ctrls,pairs){
+  its_seq$type="trt"
+  geo_ctrls$type="ctrl"
+  geo_ctrls$period="before"
+  its_seq$trajID=as.character(its_seq$trajID)
+  
+  dat=dplyr::bind_rows(geo_ctrls,its_seq)
+  dat_summary=dat %>% dplyr::group_by(trajID) %>% dplyr::summarise(mint=min(t_),maxt=max(t_))
+
+  pairs=pairs[complete.cases(pairs),]
+  colnames(pairs)[2]<-"trajID.trt"
+  colnames(dat_summary)[1]<-"trajID.trt"
+  pairs2=left_join(pairs,dat_summary,by="trajID.trt")
+  pairs2$trajID.trt=as.character(pairs2$trajID.trt)
+  
+  colnames(pairs2)[1]<-"trajID.ctrl"
+  colnames(dat_summary)[1]<-"trajID.ctrl"
+  pairs2$trajID.ctrl=as.character(pairs2$trajID.ctrl)
+  pairs3=left_join(pairs2,dat_summary,by="trajID.ctrl",suffix=c(".trt",".ctrl"))
+
+  pairs3$overlap.start=apply(pairs3[,c(which(colnames(pairs3)=="mint.trt"),
+                  which(colnames(pairs3)=="mint.ctrl"))],1,max)
+  pairs3$overlap.end=apply(pairs3[,c(which(colnames(pairs3)=="maxt.trt"),
+                                       which(colnames(pairs3)=="maxt.ctrl"))],1,min)
+  
+  pairs3$overlap.dur=difftime(pairs3$overlap.end,pairs3$overlap.start)
+
+  joinID=unique(pairs3[,c(which(colnames(pairs3)=="trajID.trt"),
+                   which(colnames(pairs3)=="pairID"),
+                   which(colnames(pairs3)=="overlap.start"),
+                   which(colnames(pairs3)=="overlap.end")
+                   )])
+  colnames(joinID)[1]="trajID"
+  dat2=left_join(its_seq,joinID,by="trajID")
+  dat2=dat2[complete.cases(dat2),]
+  
+  joinID=unique(pairs3[,c(which(colnames(pairs3)=="trajID.ctrl"),
+                          which(colnames(pairs3)=="pairID"),
+                          which(colnames(pairs3)=="overlap.start"),
+                          which(colnames(pairs3)=="overlap.end")
+  )])
+  colnames(joinID)[1]="trajID"
+  dat2c=left_join(geo_ctrls,joinID,by="trajID")
+  dat2c=dat2c[complete.cases(dat2c),]
+  
+  dat3=dplyr::bind_rows(dat2,dat2c)
+  
+  dat4=dat3[dat3$t_>=dat3$overlap.start&dat3$t_<=dat3$overlap.end,]
+  
+  summarize_np=dat4 %>% dplyr::group_by(pairID) %>% dplyr::summarise(n_distinct(period))
+  summarize_np=summarize_np[summarize_np$`n_distinct(period)`==3,]
+  
+  dat5=dat4[dat4$pairID%in%summarize_np$pairID,]
+
+  trt=dat5[dat5$type=="trt",]
+  ctrl=dat5[dat5$type=="ctrl",]
+
+    trt <- trt %>%
+    group_by(pairID, period) %>%  # add whatever grouping vars you have
+    mutate(
+      group_start = min(t_),
+      group_end   = max(t_)
+    ) %>%
+    ungroup() %>%
+    # Assign a unique group ID per distinct group
+    mutate(group_uid = consecutive_id(pairID, period))
+  
+    ctrl <- ctrl %>%
+      left_join(
+        trt %>%
+          distinct(pairID, group_uid, group_start, group_end),
+        by = "pairID",
+        relationship = "many-to-many") %>%
+      filter(t_ >= group_start & t_ <= group_end)
+
+    dat6=dplyr::bind_rows(trt,ctrl)
+    
+
+    #grouping by group_uid and asking distinct n of type should get 2
+    #ones that not represented in both involve small num pts that don't overlap well with control
+    check_period_overlaps=dat6 %>% dplyr::group_by(pairID,group_uid) %>% dplyr::summarise(nt=n_distinct(type)) 
+    check_period_overlaps=check_period_overlaps[check_period_overlaps$nt!=2,]
+    drop_pairIDs=unique(check_period_overlaps$pairID)
+    
+    dat7=dat6[!(dat6$pairID%in%drop_pairIDs),]
+    
+    #each pairID has matching before, during, after by group_uid
+    #now get the period to match as well
+    
+    dat7n=dat7 %>% dplyr::group_by(pairID,group_uid) %>% tidyr::nest()
+    
+    #assign same period to controls, matching treatment by group_uid
+    dat7n2=dat7n %>% mutate(data=purrr::map(data,changeperiod)) %>% tidyr::unnest(cols=c(data))
+    
+    #Now need redo splits for all, but by pairID,period,season
+    dat7n2$segID=paste(dat7n2$pairID,dat7n2$period,dat7n2$season,sep="_")
+    
+    #each segId should have two types (ctrl, treatment)
+    check2=dat7n2 %>% dplyr::group_by(pairID,period,season,segID) %>% dplyr::summarize(nt=n_distinct(type))
+    check2=unique(check2[,c(which(colnames(check2)=="pairID"),
+              which(colnames(check2)=="nt"))])
+    check2=check2[check2$nt<2,]
+    drop_pairIDs=check2$pairID
+    
+    #remove pairIDs with only control or treatment for respective season
+    dat_filtered=dat7n2[!(dat7n2$pairID%in%drop_pairIDs),]
+    #check=dat_filtered %>% dplyr::group_by(segID) %>% dplyr::summarise(nt=n_distinct(type))
+    
+  return(dat_filtered)
+  
+  }
+
+#  tar_target(pgeo,Filter_Durations(its_seq2,geo_ctrls2,pairs_out,mindur)),
+Filter_Durations<-function(its_seq2,geo_ctrls2,pairs_out,mindur){
+  its_seq2$type="trt"
+  geo_ctrls2$type="ctrl"
+  its_seq2$trajID=as.character(its_seq2$trajID)
+  dat=rbind(geo_ctrls2,its_seq2)
+  
+  ptrajID=c(pairs_out$trajID.trt,pairs_out$trajID.ctrl)
+  dat2=dat[dat$trajID%in%ptrajID,]
+  
+  #separate with only durations
+  trt=pairs_out[,c(1,7,8,10)]
+  ctrl=pairs_out[,c(2,7,8,10)]
+  colnames(trt)[1]="trajID"
+  colnames(ctrl)[1]="trajID"
+  trt_ctrl=rbind(trt,ctrl)
+    
+  #join overlap dates and pairIDs to geoloc data
+  dat3=left_join(dat2,trt_ctrl,by="trajID")
+  
+  #filter out geolocs outside of overlaps
+  dat4=dat3[dat3$t_>=dat3$overlap.start&dat3$t_<=dat3$overlap.end,]
+  
+  #summarize durations of each segment for each trajID
+  dsum=
+    dat4 %>% 
+    dplyr::group_by(uniqueid,herd,pairID,trajID,period) %>% 
+    dplyr::summarise(mint=min(t_),
+                     maxt=max(t_))
+  
+  #filter out 'during' since this isn't part of cutoff
+  dsum=dsum[dsum$period=="after",]
+  
+  dsum$dur=
+    difftime(dsum$maxt,dsum$mint,units="days")
+  
+  dsum2=
+    dsum %>% 
+    dplyr::group_by(pairID) %>% 
+    dplyr::summarise(mindur=min(dur))
+  
+  dsum3=dsum2[dsum2$mindur>=mindur,]
+  
+  numpairs=length(unique(dsum3$pairID))
+  print(paste0(numpairs," unique pairs that fit duration criteria"))
+  filtered_pairs=unique(dsum3$pairID)
+  
+  #filter geolocation data, keep only filtered pairs
+  dat5=dat4[dat4$pairID%in%filtered_pairs,]
+  
+  #assign segID start/end cutoffs
+  dat6=dat5 %>% group_by(pairID,trajID,period,season) %>%
+           dplyr::mutate(seg.start=min(t_),
+                         seg.end=max(t_),
+                         nseg=cur_group_id())
+  
+  #reassign segIDs in control to match segIDs in associated trt
+  pIDs=unique(dat6$pairID)
+  
+  for(p in 1:length(pIDs)){
+    p1=dat6[dat6$pairID==pIDs[p],]
+    
+    
+    #assign new cutoffs for each segID
+    p1t=p1[p1$type=="trt",]
+    p1t_ref=unique(p1t[,c(which(colnames(p1t)=="nseg"),
+           which(colnames(p1t)=="seg.end"))])
+    p1t_ref=p1t_ref %>% arrange(seg.end)
+    
+    p1c=p1[p1$type=="ctrl",]
+    idx=findInterval(p1c$t_,p1t_ref$seg.end,left.open=TRUE)
+    p1c$nseg=p1t_ref$nseg[idx+1]  
+    
+    #next step, rbind p1c and p1t
+    p1=rbind(p1t,p1c)
+    
+    #filter out NAs in nseg, means ctrl fell just outside of interval
+    p1=p1[!is.na(p1$nseg),]
+    
+    #add argument to bind across loop
+    if(p==1){
+      pgeo=p1
+    } else{
+      pgeo=rbind(pgeo,p1)
+    }
+    
+    } #end for loop
+
+  return(pgeo)
+  
+}
+
+
+PlotPairDates<-function(pgeo){
+  pgeo2=pgeo %>% dplyr::select(uniqueid,
+                                     season,
+                                     period,
+                                     pairID,
+                                     type,
+                                     trajID,
+                                     segID,
+                               group_start,
+                               group_end) %>% unique() %>% as.data.frame()
+
+  #order factor by date
+  pgeo2$pairID<-as.factor(pgeo2$pairID)
+  pgeo2$overlap.start<-as.POSIXct(pgeo2$group_start)
+  pgeo2$overlap.end<-as.POSIXct(pgeo2$group_end)
+  
+  pgeo2=pgeo2 %>%
+    mutate(pairID = forcats::fct_reorder(pairID, group_start))
+  
+  #for traj plotting, subset and get unique traj vals
+  pgeo3=pgeo2 %>% dplyr::select(pairID,
+                                type,
+                                group_start,
+                                group_end) %>% unique()
+  
+  p1=ggplot(pgeo3) +
+    geom_segment(aes(x = group_start, xend = group_end,
+                     y = pairID, yend = pairID),
+                 linewidth=1,alpha=1) +
+    theme(axis.text.y=element_blank(),
+          axis.ticks.y=element_blank(),
+          axis.text.x=element_text(angle=90,vjust=0.5,hjust=1),
+          panel.grid.major.x = element_line(color = "grey",
+                                            linewidth = 0.3,
+                                            linetype = 2))+
+    scale_x_date(date_breaks="12 month",date_labels="%b %Y")+
+    xlab("Dates")+
+    labs(color="Ctrl/Treatment")
+  
+  return(p1)
+  
+}
+
+RunMovementModels_Paired<-function(dat,
+                            herd="wah"){
+
+  geo=dat[dat$herd==herd,]
+  
+  check=geo %>% dplyr::group_by(pairID,
+                                segID) %>%
+    dplyr::summarise(n_distinct(type))
+  
+  
+  sf_locs=sf::st_as_sf(geo,coords=c("x_","y_"),crs=sf::st_crs(6393))
+  
+
+  ngeo=sf_locs %>% dplyr::group_by(uniqueid,
+                                   pairID,
+                                   type,
+                                   trajID,
+                                   segID,
+                                   period,
+                                   season,
+                                   group_start,
+                                   group_end) |> tidyr::nest()
+  
+  ngeo=ngeo %>% mutate(nrows=map(data,nrow))
+  
+  ngeo <- ngeo %>% 
+    dplyr::mutate(
+      fixpar=list(c(NA,NA))
+    )
+  
+  ngeo <- ngeo %>% 
+    dplyr::mutate(
+      theta=list(c(2,0))
+    )
+  
+  ngeo=ngeo[ngeo$nrows>10,]
+  
+  tbl_locs_fit <- ngeo %>% 
+    dplyr::mutate(fit = furrr::future_pmap(list(d = data,f=fixpar,t=theta),
+                                           fit_crawl,.options=furrr::furrr_options(seed=TRUE)))
+  
+  tbl_locs_fit2 <- 
+    tbl_locs_fit %>% 
+    dplyr::mutate(
+      params=
+        map(fit,dofit)
+    )
+  
+  return(tbl_locs_fit2)
+  
+}
+
+CombineModelParams_Pairs<-function(tbl_locs_fit2){
+  
+  #unnest
+  tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,trajID,segID,type,pairID,params,dist_x,dist_y,difft))
+  
+  tbl_locs_fit3$vx=tbl_locs_fit3$dist_x/tbl_locs_fit3$difft
+  tbl_locs_fit3$vy=tbl_locs_fit3$dist_y/tbl_locs_fit3$difft
+  
+  #isolate to model params
+  tbl_locs_fit3=
+    tbl_locs_fit3[,c("uniqueid",
+                     "season",
+                     "period",
+                     "pairID",
+                     "trajID",
+                     "type",
+                     "segID",
+                     "group_start",
+                     "group_end",
+                     "term",
+                     "estimate",
+                     "std.error",
+                     "conf.low",
+                     "conf.high",
+                     "vx",
+                     "vy"
+    )]
+  
+  #remove AIC/logLik rows
+  tbl_locs_fit3=tbl_locs_fit3[(tbl_locs_fit3$term!="AIC"),]
+  tbl_locs_fit3=tbl_locs_fit3[(tbl_locs_fit3$term!="logLik"),]
+  
+  return(tbl_locs_fit3)
+  
+}
+
+
+#Next step: descriptive viz
+Plot_Diffs_by_Season_Paired<-function(dat,response="ln sigma (Intercept)",velocity=FALSE,v=NULL){
+  datwb=dat %>% dplyr::filter(term=="ln beta (Intercept)")
+  
+  datwb=datwb[datwb$estimate>-10,]
+  
+  datwb %>% dplyr::group_by(uniqueid,season,period,pairID)
+  
+  datwb %>% 
+    filter(period!="during") %>%
+    ggplot() +
+    geom_histogram(mapping=aes(estimate,fill=nseg),alpha=0.5)+
+    facet_wrap(~season)
+  
+  datwb$ID=paste0(datwb$period,datwb$type)
+  datwb %>% 
+    filter(period!="during") %>%
+    ggplot() +
+    geom_histogram(mapping=aes(estimate,fill=ID),alpha=0.5)+
+    facet_wrap(~season)
+  
+}

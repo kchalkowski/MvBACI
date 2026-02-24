@@ -9,6 +9,13 @@ caribou movement before and after road interacations using a BACI
 control (no road interaction) and treatment (interaction with road)
 trajectories.
 
+## Questions
+
+- How does caribou movement (e.g., velocity, directionality) change as a
+  result of road interactions?
+- Do movement changes in response to roads depend on season?
+- Do movement changes in response to roads persist across seasons?
+
 ## About this repo
 
 This pipeline is made using the targets pipeline toolkit.

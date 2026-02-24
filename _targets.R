@@ -190,45 +190,60 @@ list(
   #Sometimes trajectories overlap seasons. This function creates a new unique segment ID that assigns an ID to each seasonal portion of the segment for iterating
     #Input:
     #Output:
-  tar_target(its_seq02,AssignClusterSeasons(its_seq)),
-  tar_target(geo_ctrls02,AssignClusterSeasons(geo_ctrls)),
+  #tar_target(its_seq02,AssignClusterSeasons(its_seq)),
+  #tar_target(geo_ctrls02,AssignClusterSeasons(geo_ctrls)),
   
   ### Get start/end date for each traj for counterfac matching
-  tar_target(its_seq2,GetTrajDates(its_seq02)),
-  tar_target(geo_ctrls2,GetTrajDates(geo_ctrls02)),
+  #tar_target(its_seq2,GetTrajDates(its_seq02)),
+  #tar_target(geo_ctrls2,GetTrajDates(geo_ctrls02)),
   
   ### Get movement model parameters -------
   #This runs movement models for each unique segment
     #Input
     #Output
-  tar_target(ctrl_locs_fit,RunMovementModels(geo_ctrls2,"wah")),
-  tar_target(tbl_locs_fit,RunMovementModels(its_seq2,"wah")),
+  #tar_target(ctrl_locs_fit,RunMovementModels(geo_ctrls2,"wah")),
+  #tar_target(tbl_locs_fit,RunMovementModels(its_seq2,"wah")),
 
   ### Calculate mean dist and time for each segment -------
     #Input
     #Output
-  tar_target(tbl_locs_fit2,CalculateMeanVelocity(tbl_locs_fit)),
-  tar_target(ctrl_locs_fit2,CalculateMeanVelocity(ctrl_locs_fit)),
+  #tar_target(tbl_locs_fit2,CalculateMeanVelocity(tbl_locs_fit)),
+  #tar_target(ctrl_locs_fit2,CalculateMeanVelocity(ctrl_locs_fit)),
 
   ### Combine model params and mean velocity into one data frame, unnest ------
     #Input
     #Output
-  tar_target(tbl_locs_fit3,CombineModelParams(tbl_locs_fit2)),
-  tar_target(ctrl_locs_fit3,CombineModelParams(ctrl_locs_fit2)),
+  #tar_target(tbl_locs_fit3,CombineModelParams(tbl_locs_fit2)),
+  #tar_target(ctrl_locs_fit3,CombineModelParams(ctrl_locs_fit2)),
     
   ### Match control and treatment trajectories
-    #for now this is just with the date spans
-    #may want to add other criteria later
-  tar_target(matches,Match_Ctrl_Trt(tbl_locs_fit3,ctrl_locs_fit3)),
+    #gets durations of overlaps between treatment/ctrl trajectories
+  tar_target(matches,Match_Ctrl_Trt(its_seq,geo_ctrls)),
   
   ### Remove duplicated pairs
     #uses Hungarian matching to maximize overlap between dates
     #if/when implement additional covariates, want to use propensity score matching probably
     #other trimming (ie correlated movement paths) would be done prior to this step
+    #*note, output still results in some pairs without overlap
+    #*need to tweak this, maybe weight negative matches with same value since negative time durations mean the same thing
   tar_target(pairs,Hungarian_matching(matches)),
   
-  ### Filter out unpaired and trim durations of pairs accordingly
+  ### Filter out unpaired, 
+  #combine
+  #and get new cutoff dates with just overlap
+  #erge and filter pairs with negative durations
+  tar_target(pgeo,Filter_Pairs(its_seq,geo_ctrls,pairs)),
+
+  ### Fit movement models to paired/trimmed trajectories
+  #*note, currently running movement model twice.. need refactor pipeline to avoid that
+  #*need to update pipeline as well-- movement modeling should occur later since trajectories will be trimmed
+  tar_target(movepairs,RunMovementModels_Paired(pgeo,"wah")),
   
+  ### Get velocity for pairs
+  tar_target(movepairs2,CalculateMeanVelocity(movepairs)),
+  
+  ### CombineModelParams
+  tar_target(movepairs3,CombineModelParams_Pairs(movepairs2)),
   
   ## Visualization --------
   
@@ -284,20 +299,21 @@ list(
                                          label_vjust=0.1,
                                          label_size=2,
                                          "denali",
-                                         filter=28)),
+                                         filter=28))#,
   
-  
-
   #plot x coordinate velocity diffs
-  tar_target(plot_vx_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vx")),
+  #tar_target(plot_vx_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vx")),
   #plot y coordinate velocity diffs
-  tar_target(plot_vy_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vy")),
+  #tar_target(plot_vy_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vy")),
   #plot sigma velocity diffs
-  tar_target(plot_sigma_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln sigma (Intercept)")),
+  #tar_target(plot_sigma_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln sigma (Intercept)")),
   #plot tau velocity diffs
-  tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)")),
+  #tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)")),
   
   #Plot dates between control/treatment trajectories before matching
-  tar_target(datespan_ctrl_trt,PlotTrajDates(tbl_locs_fit3,ctrl_locs_fit3))
+  #tar_target(datespan_ctrl_trt,PlotTrajDates(tbl_locs_fit3,ctrl_locs_fit3))#,
+  
+  #Plot dates between control/treatment trajectories before matching
+  #tar_target(datespan_pairs,PlotPairDates(pgeo))
   
   )
