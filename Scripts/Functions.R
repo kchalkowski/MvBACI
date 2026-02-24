@@ -793,19 +793,21 @@ Filter_Pairs<-function(its_seq,geo_ctrls,pairs){
   
 }
 
+#Helper function for Filter_Pairs
+changeperiod=function(df){
+  df[df$type=="ctrl",which(colnames(df)=="period")]=
+    df[df$type=="trt",which(colnames(df)=="period")][[1]][1]
+  return(df)
+}
+
 ## 5. Fit movement models ----
-RunMovementModels_Paired<-function(dat,
-                                   herd="wah"){
+#Runs movement models, calculates mean velocity, returns tidy output
+GetMovementParameters<-function(pgeo,herd="wah",minrow=10){
+  geo=pgeo[pgeo$herd==herd,]
   
-  geo=dat[dat$herd==herd,]
-  
-  check=geo %>% dplyr::group_by(pairID,
-                                segID) %>%
-    dplyr::summarise(n_distinct(type))
-  
+  check=geo %>% dplyr::group_by(pairID,segID) %>% dplyr::summarise(n_distinct(type))
   
   sf_locs=sf::st_as_sf(geo,coords=c("x_","y_"),crs=sf::st_crs(6393))
-  
   
   ngeo=sf_locs %>% dplyr::group_by(uniqueid,
                                    pairID,
@@ -829,12 +831,22 @@ RunMovementModels_Paired<-function(dat,
       theta=list(c(2,0))
     )
   
-  ngeo=ngeo[ngeo$nrows>10,]
+  ngeo=ngeo[ngeo$nrows>minrow,]
+  
+  tbl_locs_fit2=RunMovementModels(ngeo)
+  movepairs2=CalculateMeanVelocity(tbl_locs_fit2)
+  movepairs3=CombineModelParams_Pairs(movepairs2)
+  movepairs4=TidyMovePairs(movepairs3)
+  
+  return(movepairs4)
+}
+
+#Helper function for GetMovementParameters
+RunMovementModels<-function(ngeo){
   
   tbl_locs_fit <- ngeo %>% 
     dplyr::mutate(fit = furrr::future_pmap(list(d = data,f=fixpar,t=theta),
                                            fit_crawl,.options=furrr::furrr_options(seed=TRUE)))
-  
   tbl_locs_fit2 <- 
     tbl_locs_fit %>% 
     dplyr::mutate(
@@ -846,7 +858,7 @@ RunMovementModels_Paired<-function(dat,
   
 }
 
-#Helper function for RunMovementModels_Paired
+#Helper function for GetMovementParameters
 fit_crawl <- function(d,f,t) {
   
   ## if relying on a prior for location quality
@@ -878,28 +890,28 @@ fit_crawl <- function(d,f,t) {
   fit
 }
 
-#Helper function for RunMovementModels_Paired
+#Helper function for GetMovementParameters
 init_params <- function(d) {
-    if (any(colnames(d) == "x") && any(colnames(d) == "y")) {
-      ret <- list(a = c(d$x_[1], 0,
-                        d$y_[1], 0),
-                  P = diag(c(10 ^ 2, 10 ^ 2,
-                             10 ^ 2, 10 ^ 2)))
-    } else if (inherits(d,"sf")) {
-      ret <- list(a = c(sf::st_coordinates(d)[[1,1]], 0,
-                        sf::st_coordinates(d)[[1,2]], 0))
-    }
-    ret
-  } 
-
-#Helper function for RunMovementModels_Paired
-dofit<-function(fit){
-    if(all(class(fit)=="crwFit")){
-      crawl::tidy_crwFit(fit)
-    }
+  if (any(colnames(d) == "x") && any(colnames(d) == "y")) {
+    ret <- list(a = c(d$x_[1], 0,
+                      d$y_[1], 0),
+                P = diag(c(10 ^ 2, 10 ^ 2,
+                           10 ^ 2, 10 ^ 2)))
+  } else if (inherits(d,"sf")) {
+    ret <- list(a = c(sf::st_coordinates(d)[[1,1]], 0,
+                      sf::st_coordinates(d)[[1,2]], 0))
   }
+  ret
+} 
 
-### Calculate mean velocity ----
+#Helper function for GetMovementParameters
+dofit<-function(fit){
+  if(all(class(fit)=="crwFit")){
+    crawl::tidy_crwFit(fit)
+  }
+}
+
+#Helper function for GetMovementParameters
 CalculateMeanVelocity<-function(tbl_locs_fit){
   tbl_locs_fit %>%
     mutate(
@@ -909,39 +921,36 @@ CalculateMeanVelocity<-function(tbl_locs_fit){
     ) #m/hr
 }
 
-#Helper function for CalculateMeanVelocity
+#Helper function for GetMovementParameters
 getdist_x<-function(data){
   mean(as.numeric(st_coordinates(data)[,1]-lag(st_coordinates(data)[,1])),na.rm=T)
 }
 
-#Helper function for CalculateMeanVelocity
+#Helper function for GetMovementParameters
 getdist_y<-function(data){
   mean(as.numeric(st_coordinates(data)[,2]-lag(st_coordinates(data)[,2])),na.rm=T)
 }
 
-#Helper function for CalculateMeanVelocity
+#Helper function for GetMovementParameters
 getdifft<-function(data){
   mean(as.numeric(difftime(data$t_,lag(data$t_),units="hours")),na.rm=T)
 }
 
-### Format/tidy model output data -----
-CombineModelParams<-function(tbl_locs_fit2){
-  #unnest
-  tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,segID,params,dist_x,dist_y,difft))
-  
+#Helper function for GetMovementParameters
+CombineModelParams_Pairs<-function(tbl_locs_fit2){
+  tbl_locs_fit3=tbl_locs_fit2 |> tidyr::unnest(cols=c(uniqueid,season,period,trajID,segID,type,pairID,params,dist_x,dist_y,difft))
   tbl_locs_fit3$vx=tbl_locs_fit3$dist_x/tbl_locs_fit3$difft
   tbl_locs_fit3$vy=tbl_locs_fit3$dist_y/tbl_locs_fit3$difft
-  
-  #isolate to model params
   tbl_locs_fit3=
     tbl_locs_fit3[,c("uniqueid",
                      "season",
                      "period",
+                     "pairID",
                      "trajID",
-                     "traj.start",
-                     "traj.end",
-                     "traj.dur",
+                     "type",
                      "segID",
+                     "group_start",
+                     "group_end",
                      "term",
                      "estimate",
                      "std.error",
@@ -951,12 +960,27 @@ CombineModelParams<-function(tbl_locs_fit2){
                      "vy"
     )]
   
-  #remove AIC/logLik rows
   tbl_locs_fit3=tbl_locs_fit3[(tbl_locs_fit3$term!="AIC"),]
   tbl_locs_fit3=tbl_locs_fit3[(tbl_locs_fit3$term!="logLik"),]
   
   return(tbl_locs_fit3)
   
-  }
+}
 
+TidyMovePairs<-function(movepairs){
+  movepairs=movepairs[complete.cases(movepairs),]
+  
+  movepairs_w=movepairs %>% 
+    tidyr::pivot_wider(
+      names_from=term,
+      names_sep="_",
+      values_from=c(estimate,std.error,conf.low,conf.high),
+      id_cols=c(pairID,uniqueid,season,period,type,trajID,segID,vx,vy))
+  
+  #reorder cols, position term variables in adjacent cols
+  movepairs_w=movepairs_w[,c(1:10,12,14,16,11,13,15,17)]
+  
+  return(movepairs_w)
+}
 ## 6. Make plots ---------
+  
