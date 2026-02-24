@@ -215,6 +215,32 @@ douniqueID<-function(dat){
 
 ## 3. Identify treatment and control trajectories -------------
 
+ProcessTrtCtrl<-function(rb_summary_list,
+                         filter_before=28,
+                         filter_after=28,
+                         ctrl_filter=84,
+                         herd="wah",
+                         seasons,
+                         t_=t_){
+  #tar_target(geo_c,SetRoadIntID(rb_summary_list))
+  geo_c=SetRoadIntID(rb_summary_list)
+  #tar_target(ints,DescribeRoadInts(geo_c)),
+  ints=DescribeRoadInts(geo_c)
+  #tar_target(ints_its,FilterInts(ints,filter_before=28,filter_after=28)),
+  ints_its=FilterInts(ints,filter_before,filter_after)
+  #tar_target(ctrls,FindCtrlGroups(geo_c,84)),
+  ctrls=FindCtrlGroups(geo_c,ctrl_filter)
+  #tar_target(geo_cs,assign_season(geo_c,t_,seasons,herd="wah")),
+  geo_cs=assign_season(geo_c,t_,seasons,herd)
+  #tar_target(its_seq,FormatClusterSets(geo_cs,ints_its)),
+  its_seq=FormatClusterSets(geo_cs,ints_its)
+  #tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
+  geo_ctrls=FormatCtrls(geo_cs,ctrls) 
+  
+  return(list("trt"=its_seq,
+              "ctrl"=geo_ctrls))
+}
+
 ### Find treatment trajectories that overlap with roads -----
 SetRoadIntID<-function(rb_summary_list){
 
@@ -410,7 +436,7 @@ FilterInts<-function(ints,filter_before,filter_after){
 }
 
 ### Find control trajectories of input minimum duration -------
-FindCtrlGroups<-function(geo_c,filter){
+FindCtrlGroups<-function(geo_c,ctrl_filter){
   
   #trim road interaction clusters out
   geonr=geo_c[geo_c$clustID<0,]
@@ -428,7 +454,7 @@ FindCtrlGroups<-function(geo_c,filter){
   clusters$days=round(as.numeric(clusters$difft/24))
   
   #caribou clusters with at least 84 days (12 weeks) of no road interaction
-  ctrls=clusters[clusters$days>=filter,]
+  ctrls=clusters[clusters$days>=ctrl_filter,]
   return(ctrls)
 }
 
