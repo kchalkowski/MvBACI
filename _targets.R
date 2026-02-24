@@ -1,6 +1,5 @@
 # _targets.R
 
-
 # Targets setup --------------------
 setwd(this.path::this.dir())
 
@@ -53,15 +52,17 @@ list(
              file.path("Input"),
              format="file"),
   
-  ## Read input data ----- 
+  ## 1. Read input data ----- 
   
   #*Note, the following objects were output from Explore_Caribou_Data_Pipeline
   #*caribou_geolocations.rds is just consolidated/tidied df with all geolocations
   #*roads.rds is an sf file with roads
-  #*road_summary_list.rds describes all roads that intersect with caribou
   #*nsdat is the north slope shapefile data, source linked below
   ### Read caribou geolocations rds -------------
   tar_target(geo0,ReadRDS(Input_folder,"caribou_geolocations.rds")),
+  
+  ### Read seasons rds -------------
+  tar_target(seasons,ReadRDS(Input_folder,"seasons.rds")),
   
   ### Read Roads rds -------------
   tar_target(roads0,ReadRDS(Input_folder,"roads.rds")),
@@ -70,7 +71,7 @@ list(
   #from https://catalog.northslopescience.org/dataset/2663
   tar_target(nsdat,ReadFormatNS(Input_folder)),
   
-  ## Format input data -------------
+  ## 2. Format input data -------------
   
   ### Merge and format road shapefiles ---------
     #add unique ID for each object and combine
@@ -112,172 +113,43 @@ list(
         #*data_sf- sf points formatted track data
         #*ints_buffs- sf points, geolocations that intersect with road buffers
   tar_target(rb_summary_list,SummarizeRoadIntersections(roads1,roadbuffs,geo1,test=FALSE)),
- 
-  ### Get geolocation set with clusterIDs (unique interactions with road) -------
-  #Assigns integers (1,-1) that identify whether a contiguous segment is an intersection with a road (1) or not (-1)
-  #Assigns unique identification numbers for each contiguous segment with/without a road intersection
-    #Input: rb_summary_list (see SummarizeRoadIntersections notes for more detail)
-    #Output: geo_c, geolocation data frame with uniqueIDs for contiguous road segments (clusterIDs) and intIDs (int)
-  tar_target(geo_c,SetRoadIntID(rb_summary_list)),
-  
-  ### Describe road intersections -----
-  #Get durations during, before, after each unique intersection with road buffers
-  #This will be used for any filtering or matching steps later on
-    #Input: geo_c, geolocation data frame with cluster/int uniqueIDs
-    #Output: ints, grouped data frame for each contiguous trajectory
-      #*mint- start datetime of intersection with road buffer
-      #*maxt- end datetime of interesection with road buffer
-      #*difft- total duration of intersection with road buffer in days
-      #*nlocs- number of geolocations in intersection with road buffer
-      #*dur_before- number of days in continuous trajectory before intersection with the road buffer
-      #*dur_after- number of days in continuous trajectory before intersection with the road buffer
-      #*month- 
-  tar_target(ints,DescribeRoadInts(geo_c)),
-  
-  ### Filter intersections by minimum duration set for before/after ------
-  #removes continuous trajectories that are shorter than these criteria
-    #Input: 
-      #*ints, grouped df describing characteristics of each traj
-      #*filter_before: integer, number of days minimum for before intersection with road
-      #filter_after: integer, number of days minimum for after intersection with road
-    #Output:
-      #same as ints data frame, but removed intersections that do not have before/after periods meeting the criteria
-  tar_target(ints_its,FilterInts(ints,filter_before=28,filter_after=28)),
 
-  ### Find control groups according to filter (min day span) ------
-    #Input: 
-      #*geo_c, geolocation data frame with traj IDs
-      #*filter, integer, minimum number of days for control traj segment
-    #Output: grouped data frame with uniqueid/clustIDs with duration greater than filter
-  tar_target(ctrls,FindCtrlGroups(geo_c,84)),
+  ## 3. Identify treatment and control trajectories -------------
   
   ### Make season matrix ------
   #Makes matrix to assign seasons
-    #Input: matrix with season names, start dates, and end dates of each season, all dates are strings in MM/DD format
-    #Output: same as input
-  tar_target(seasons,MakeSeasons(seasons=c("calving","insect","latesummer","fallmigr","winter","springmigr"),
-                                 strt.dts=c("05/28","06/15","07/15","09/01","12/01","04/01"),
-                                 end.dts=c("06/14","07/14","08/31","11/30","03/31","05/27")
-                                 )),
+  #Input: matrix with season names, start dates, and end dates of each season, all dates are strings in MM/DD format
+  #Output: same as input
+  #tar_target(seasons,MakeSeasons(seasons=c("calving","insect","latesummer","fallmigr","winter","springmigr"),
+  #                               strt.dts=c("05/28","06/15","07/15","09/01","12/01","04/01"),
+  #                               end.dts=c("06/14","07/14","08/31","11/30","03/31","05/27")
+  #)),
   
-  ### Add seasons to geolocations (for now just wah) ------
-    #Input: 
-      #*geo_c, geolocation data frame with traj IDs
-      #*t_, column with datetimes
-      #*seasons, character matrix with season names, start and end dates 
-      #*herd, string indicating herd, matches herd column in geo_c
-  tar_target(geo_cs,assign_season(geo_c,t_,seasons,herd="wah")),
-
-  ### Output intersections with period (before, after etc.) for each set ------
-  #This function uses the uniqueid/clusterID to pull selected intersections and associated before/after trajs, and labels trajs by period (before, during, after)
-    #Input:
-      #*geo_cs
-      #*ints_its
-    #Output: its_seq
-  tar_target(its_seq,FormatClusterSets(geo_cs,ints_its)),
+  #Find road interactions (treatment traj)
+  #Summarise durations before, during and after road interactions
+  #Filter treatment trajectories by before/after durations
+  #Pull road interactions plus before/after durations into nested data frame
+  #Find control trajectories (no road interactions)
+  #Filter control trajectories by minimum duration
+  #Output list with ctrl and treatment trajectory df
+  tar_target(trt_ctrl,ProcessTrtCtrl(rb_summary_list,
+                                  filter_before=28,
+                                  filter_after=28,
+                                  ctrl_filter=84,
+                                  herd="wah",
+                                  seasons,
+                                  t_=t_)),
   
-  ### Output control data geolocations only
-  #This function is analogous to FormatClusterSets, but pulls control data
-    #Input:
-    #Output: geo_ctrls
-  tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
+  ## 4. Match control and treatment trajectories ------
+  ### Determine overlap times between each treatment and control trajectory 
+  ### Use Hungarian matching to reach global maximum overlap 
+  ### Filter trailing end of each pair, and unpaired traj
+  tar_target(pgeo,Match_Ctrl_Trt(trt_ctrl$trt,trt_ctrl$ctrl)),
   
-  ### Match control and treatment trajectories
-    #gets durations of overlaps between treatment/ctrl trajectories
-  tar_target(matches,Match_Ctrl_Trt(its_seq,geo_ctrls)),
+  ## 5. Fit movement models ----
+  ### Runs movement models, calculates mean velocity, returns tidy output
+  tar_target(movepairs,GetMovementParameters(pgeo,"wah"))#,
   
-  ### Remove duplicated pairs
-    #uses Hungarian matching to maximize overlap between dates
-    #if/when implement additional covariates, want to use propensity score matching probably
-    #other trimming (ie correlated movement paths) would be done prior to this step
-  tar_target(pairs,Hungarian_matching(matches)),
-  
-  ### Filter out unpaired, 
-  #combine
-  #and get new cutoff dates with just overlap
-  #erge and filter pairs with negative durations
-  tar_target(pgeo,Filter_Pairs(its_seq,geo_ctrls,pairs)),
-
-  ### Fit movement models to paired/trimmed trajectories
-  #*note, currently running movement model twice.. need refactor pipeline to avoid that
-  #*need to update pipeline as well-- movement modeling should occur later since trajectories will be trimmed
-  tar_target(movepairs,RunMovementModels_Paired(pgeo,"wah")),
-  
-  ### Get velocity for pairs
-  tar_target(movepairs2,CalculateMeanVelocity(movepairs)),
-  
-  ### CombineModelParams
-  tar_target(movepairs3,CombineModelParams_Pairs(movepairs2)),
-  
-  ## Visualization --------
-  
-  ### Make plots, for each herd, showing spread by season -------
-  #only showing intersections that have cutoff of 28 days before and after intersection event
-  tar_target(ints_cah,VizDescribeInts(ints,
-                                      seasons=data.frame(
-                                        season = c("Winter","Spring","Summer","Fall"),
-                                        start  = c(1,30,90,275),
-                                        end    = c(30,90,275,365),
-                                        label=c("Feb-1","March-1","June-1","October-1")),
-                                      alpha=0.5,
-                                      colors= c("grey85", "grey95"),
-                                      label_vjust=0.1,
-                                      label_size=2,
-                                      "cah",
-                                      filter=28)),
-  
-  tar_target(ints_wah,VizDescribeInts(ints,
-                                      seasons=data.frame(
-                                        season = c("Winter","Spring","Summer","Fall"),
-                                        start  = c(1,30,90,275),
-                                        end    = c(30,90,275,365),
-                                        label=c("Feb-1","March-1","June-1","October-1")),
-                                      alpha=0.5,
-                                      colors= c("grey85", "grey95"),
-                                      label_vjust=-0.2,
-                                      label_size=2,
-                                      "wah",
-                                      filter=28)),
-  
-  tar_target(ints_nelchina,VizDescribeInts(ints,
-                                           seasons=data.frame(
-                                             season = c("Winter","Spring","Summer","Fall"),
-                                             start  = c(1,30,90,275),
-                                             end    = c(30,90,275,365),
-                                             label=c("Feb-1","March-1","June-1","October-1")),
-                                           alpha=0.5,
-                                           colors= c("grey85", "grey95"),
-                                           label_vjust=0.1,
-                                           label_size=2,
-                                           "nelchina",
-                                           filter=28)),
-  
-  tar_target(ints_denali,VizDescribeInts(ints,
-                                         seasons=data.frame(
-                                           season = c("Winter","Spring","Summer","Fall"),
-                                           start  = c(1,30,90,275),
-                                           end    = c(30,90,275,365),
-                                           label=c("Feb-1","March-1","June-1","October-1")),
-                                         alpha=0.3,
-                                         colors= c("grey85", "grey95"),
-                                         label_vjust=0.1,
-                                         label_size=2,
-                                         "denali",
-                                         filter=28))#,
-  
-  #plot x coordinate velocity diffs
-  #tar_target(plot_vx_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vx")),
-  #plot y coordinate velocity diffs
-  #tar_target(plot_vy_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,velocity=TRUE,v="vy")),
-  #plot sigma velocity diffs
-  #tar_target(plot_sigma_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln sigma (Intercept)")),
-  #plot tau velocity diffs
-  #tar_target(plot_tau_diffs,Plot_Diffs_by_Season(tbl_locs_fit3,response="ln beta (Intercept)")),
-  
-  #Plot dates between control/treatment trajectories before matching
-  #tar_target(datespan_ctrl_trt,PlotTrajDates(tbl_locs_fit3,ctrl_locs_fit3))#,
-  
-  #Plot dates between control/treatment trajectories before matching
-  #tar_target(datespan_pairs,PlotPairDates(pgeo))
+  ## 6. Visualization --------
   
   )

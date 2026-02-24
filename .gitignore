@@ -1,7 +1,9 @@
 .RData
 .Ruserdata
 Scratch
-Input
+Input/caribou_geolocations.rds
+Input/roads.rds
+Input/NSSI_data
 _targets/
 _targets.yaml
 Plots

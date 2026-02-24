@@ -4,9 +4,7 @@ output: github_document
 ---
 
 ```{bash include=FALSE, echo=FALSE}
-echo $PATH
 export PATH="/run/user/1001/fnm_multishells/449478_1771356157082/bin:$PATH"
-echo $PATH
 export CHROME_DEVEL_SANDBOX=/opt/google/chrome/chrome-sandbox
 mmdc -i ./Documents/mvBACIpipeline.mmd -o ./Documents/mvBACIpipeline.svg -t dark -b 333333 --scale 2
 ```
