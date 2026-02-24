@@ -22,11 +22,9 @@ subgraph legend
 		procdatact["`Get control trajectories: <br> trajectories that do not <br> encounter a road buffer for <br> minimum span of time`"]
 		filterdata["`Filter treatments: <br> minimum duration for <br> before/after <br> road crossing`"]
     OUmod["`Fit iOU model (crawl) <br> movement trajectories, <br> split by period <br> (before, during, after) <br> and season`"]
-    counterfac["`Counterfactual pairing <br> of each treatment trajectory <br> to a similar ctrl trajectory`"]
     BACIfilter["`throw out trajectories <br> that don't meet BACI <br> assumptions (determine <br> cutoff a priori)`"]
     Linearmodels["`Compare model parameter <br> differences across season <br> and road interaction <br> in linear models`"]
 		buffersens["`Sensitivity analysis of <br> buffer sizes`"]
-		countfacsample["`Evaluate whether have <br>enough samples,<br> else may need to identify<br> counterfac pairings <br>with env covs`"]		
     simdata["`Simulate geolocation <br> data to facilitate <br>code sharing`"]
     corrfilter["`Remove correlated <br>movement paths`"]
     analys["`Final data frame to use for modeling. Each row is a trajectory, with parameters describing it's movement, and covariates describing season, period, ctrl/trt, caribou ID`"]
@@ -39,7 +37,6 @@ subgraph legend
     analys@{ shape: notch-rect }
     
     roadbuff-.-buffersens:::todo
-    counterfac-.-countfacsample:::done
     filterpairs-.-corrfilter:::todo
     filterpairs-.-BACIfilter:::todo
     filterpairs-.-checkpseudo:::todo
@@ -56,8 +53,7 @@ subgraph legend
     filterdata --> filterpairs
     filterpairs --> Hungarian:::done
     Hungarian --> OUmod:::done
-    OUmod --> counterfac:::done
-    counterfac --> analys
+    OUmod --> analys
     analys --> Linearmodels:::todo
     
     end

@@ -21,10 +21,6 @@ tar_config_set(
 #Source functions in pipeline
 lapply(list.files(file.path("Scripts"), full.names = TRUE, recursive = TRUE), source)
 
-#set options
-#this option has been deprecrated, need to update to new version...
-#options(clustermq.scheduler="multicore")
-
 #Load packages
 tar_option_set(packages = c("tidyr",
                             "purrr",
@@ -186,36 +182,6 @@ list(
     #Output: geo_ctrls
   tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
   
-  ### Assign season to each unique track segment using set of criteria ------
-  #Sometimes trajectories overlap seasons. This function creates a new unique segment ID that assigns an ID to each seasonal portion of the segment for iterating
-    #Input:
-    #Output:
-  #tar_target(its_seq02,AssignClusterSeasons(its_seq)),
-  #tar_target(geo_ctrls02,AssignClusterSeasons(geo_ctrls)),
-  
-  ### Get start/end date for each traj for counterfac matching
-  #tar_target(its_seq2,GetTrajDates(its_seq02)),
-  #tar_target(geo_ctrls2,GetTrajDates(geo_ctrls02)),
-  
-  ### Get movement model parameters -------
-  #This runs movement models for each unique segment
-    #Input
-    #Output
-  #tar_target(ctrl_locs_fit,RunMovementModels(geo_ctrls2,"wah")),
-  #tar_target(tbl_locs_fit,RunMovementModels(its_seq2,"wah")),
-
-  ### Calculate mean dist and time for each segment -------
-    #Input
-    #Output
-  #tar_target(tbl_locs_fit2,CalculateMeanVelocity(tbl_locs_fit)),
-  #tar_target(ctrl_locs_fit2,CalculateMeanVelocity(ctrl_locs_fit)),
-
-  ### Combine model params and mean velocity into one data frame, unnest ------
-    #Input
-    #Output
-  #tar_target(tbl_locs_fit3,CombineModelParams(tbl_locs_fit2)),
-  #tar_target(ctrl_locs_fit3,CombineModelParams(ctrl_locs_fit2)),
-    
   ### Match control and treatment trajectories
     #gets durations of overlaps between treatment/ctrl trajectories
   tar_target(matches,Match_Ctrl_Trt(its_seq,geo_ctrls)),
@@ -224,8 +190,6 @@ list(
     #uses Hungarian matching to maximize overlap between dates
     #if/when implement additional covariates, want to use propensity score matching probably
     #other trimming (ie correlated movement paths) would be done prior to this step
-    #*note, output still results in some pairs without overlap
-    #*need to tweak this, maybe weight negative matches with same value since negative time durations mean the same thing
   tar_target(pairs,Hungarian_matching(matches)),
   
   ### Filter out unpaired, 
