@@ -596,6 +596,15 @@ FormatCtrls<-function(geo_cs,ctrls,herd="wah"){
 
 ### Determine overlap times between each treatment and control trajectory ----
 Match_Ctrl_Trt<-function(its_seq,geo_ctrls){
+  durations=FindOverlapDurations(its_seq,geo_ctrls)
+  pairs=Hungarian_matching(durations)
+  pgeo=Filter_Pairs(its_seq,geo_ctrls,pairs)
+  
+  return(pgeo)
+}
+
+#Helper function for Match_Ctrl_Trt
+FindOverlapDurations<-function(its_seq,geo_ctrls){
   
   trt=its_seq %>% dplyr::group_by(trajID,period) %>% dplyr::mutate(min.seg.t=min(t_),max.seg.t=max(t_))
   trt=trt %>% dplyr::group_by(trajID) %>% dplyr::mutate(min.traj.t=min(t_),max.traj.t=max(t_))
@@ -626,8 +635,6 @@ Match_Ctrl_Trt<-function(its_seq,geo_ctrls){
   res.total=result %>% group_by(ctrl_id,trt_id) %>% dplyr::summarise(overlaps=sum(overlap_days),po=sum(overlap_days==0))
   res.filt=res.total[res.total$overlaps>0&res.total$po==0,]
   
-  
-  return(res.filt)
 }
 
 #Helper function for Match_Ctrl_Trt
@@ -638,7 +645,7 @@ overlap_duration <- function(s1, e1, s2, e2) {
   return(duration)
 }
 
-### Use Hungarian matching to reach global maximum overlap ------
+#Helper function for Match_Ctrl_Trt
 Hungarian_matching<-function(matches){
   
   matches$ctrl_id<-as.character(matches$ctrl_id)
@@ -676,7 +683,7 @@ Hungarian_matching<-function(matches){
   return(pairs)
 }
 
-### Filter trailing end of each pair, and unpaired traj ----
+#Helper function for Match_Ctrl_Trt
 #combine
 #and get new cutoff dates with just overlap
 #filter geolocation data
