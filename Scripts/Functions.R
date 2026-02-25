@@ -993,5 +993,38 @@ TidyMovePairs<-function(movepairs){
   
   return(movepairs_w)
 }
+
 ## 6. Make plots ---------
+BACI_intxn_plot<-function(movepairs,response="`estimate_ln beta (Intercept)`"){
+  movepairs$season<-as.factor(movepairs$season)
+  movepairs$season<-forcats::fct_relevel(movepairs$season,
+                                         c("springmigr",
+                                           "calving",
+                                           "insect",
+                                           "latesummer",
+                                           "fallmigr",
+                                           "winter"))
   
+  movepairs$period<-as.factor(movepairs$period)
+  movepairs$period<-forcats::fct_relevel(movepairs$period,
+                                         c("before",
+                                           "during",
+                                           "after"))
+  
+  mp=movepairs %>% 
+    dplyr::group_by(type,period,season) %>%
+    dplyr::summarise(mean_est=mean(eval(parse(text=response))))
+  
+  p1=mp %>%
+    ggplot() +
+    geom_line(mapping=aes(x=period,y=mean_est,group=type))+
+    geom_point(mapping=aes(x=period,y=mean_est,color=type))+
+    facet_wrap(~season)+
+    theme_minimal()+
+    ylab(response)
+  
+  return(p1)
+  
+}
+
+

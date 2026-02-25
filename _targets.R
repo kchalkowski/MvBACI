@@ -148,8 +148,12 @@ list(
   
   ## 5. Fit movement models ----
   ### Runs movement models, calculates mean velocity, returns tidy output
-  tar_target(movepairs,GetMovementParameters(pgeo,"wah"))#,
+  tar_target(movepairs,GetMovementParameters(pgeo,"wah")),
   
   ## 6. Visualization --------
+  tar_target(baci_sigma,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
+  tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
+  tar_target(baci_vx,BACI_intxn_plot(movepairs,"vx")),
+  tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy"))
   
   )
