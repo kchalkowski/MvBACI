@@ -151,8 +151,14 @@ list(
   tar_target(movepairs,GetMovementParameters(pgeo,"wah")),
   
   ## 6. Visualization --------
+  
+  ### Forest plots of movement parameters and high/low conf intervals
+  tar_target(sigma_for,BACI_intxn_plot(movepairs,"sigma")),
+  tar_target(beta_for,BACI_intxn_plot(movepairs,"beta")),
+  
+  ### Baci interaction plots
   tar_target(baci_sigma,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
-  tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
+  tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln beta (Intercept)`")),
   tar_target(baci_vx,BACI_intxn_plot(movepairs,"vx")),
   tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy"))
   

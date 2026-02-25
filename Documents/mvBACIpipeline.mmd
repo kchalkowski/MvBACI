@@ -31,6 +31,7 @@ subgraph legend
     filterpairs["`Filter trajectories`"]
     Hungarian["`Match ctrl and trt<br> with Hungarian solver`"]
     checkpseudo["`Check for road <br>intxn repetition`"]
+    evalmov["`Evaluate mvmt <br>model fits`"]
     
     geolocdat@{ shape: notch-rect }
     roaddat@{ shape: notch-rect }
@@ -53,7 +54,8 @@ subgraph legend
     filterdata --> filterpairs
     filterpairs --> Hungarian:::done
     Hungarian --> OUmod:::done
-    OUmod --> analys
+    OUmod --> evalmov:::todo
+    evalmov --> analys
     analys --> Linearmodels:::todo
     
     end

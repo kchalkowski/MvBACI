@@ -1027,4 +1027,44 @@ BACI_intxn_plot<-function(movepairs,response="`estimate_ln beta (Intercept)`"){
   
 }
 
+ForestPlot_MovePars<-function(movepairs,response="sigma"){
+  
+  if(response=="sigma"){
+    p1=movepairs %>%
+      ggplot() +
+      geom_segment(mapping=
+                  aes(x=`conf.low_ln sigma (Intercept)`,
+                      xend=`conf.high_ln sigma (Intercept)`,
+                      y=segID,
+                      yend=segID))+
+      geom_point(mapping=
+                     aes(x=`estimate_ln sigma (Intercept)`,
+                         y=segID),size=0.5)+
+      geom_vline(xintercept=0,linetype="dashed",color="red")+
+      theme_minimal()+
+      xlab(response)+
+      theme(axis.text.y=element_blank())
+  }
+  
+  if(response=="beta"){
+    p1=movepairs %>%
+      ggplot() +
+      geom_segment(mapping=
+                     aes(x=`conf.low_ln beta (Intercept)`,
+                         xend=`conf.high_ln beta (Intercept)`,
+                         y=segID,
+                         yend=segID))+
+      geom_point(mapping=
+                   aes(x=`estimate_ln beta (Intercept)`,
+                       y=segID),size=0.5)+
+      geom_vline(xintercept=0,linetype="dashed",color="red")+
+      theme_minimal()+
+      xlab(response)+
+      theme(axis.text.y=element_blank())
+    
+    
+  }
 
+  return(p1)
+}
+  
