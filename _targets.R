@@ -112,7 +112,10 @@ list(
         #*data_uid- amt formatted track data with ID for each geolocation in track
         #*data_sf- sf points formatted track data
         #*ints_buffs- sf points, geolocations that intersect with road buffers
-  tar_target(rb_summary_list,SummarizeRoadIntersections(roads1,roadbuffs,geo1,test=FALSE)),
+  tar_target(rb_summary_list,SummarizeRoadIntersections(roads1,
+                                                        roadbuffs,
+                                                        geo1,
+                                                        test=FALSE)),
 
   ## 3. Identify treatment and control trajectories -------------
   
@@ -157,6 +160,8 @@ list(
   ### Check BACI assumptions
   
   ### Run linear models
+  
+  ### Simulate differences
   
   ## 6. Visualization --------
   
