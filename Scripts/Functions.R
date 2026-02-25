@@ -231,7 +231,7 @@ ProcessTrtCtrl<-function(rb_summary_list,
   #tar_target(ctrls,FindCtrlGroups(geo_c,84)),
   ctrls=FindCtrlGroups(geo_c,ctrl_filter)
   #tar_target(geo_cs,assign_season(geo_c,t_,seasons,herd="wah")),
-  geo_cs=assign_season(geo_c,t_,seasons,herd)
+  geo_cs=assign_season(geo_c,"t_",seasons,herd) #character string is not in a standard unambiguous format
   #tar_target(its_seq,FormatClusterSets(geo_cs,ints_its)),
   its_seq=FormatClusterSets(geo_cs,ints_its)
   #tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
@@ -469,8 +469,7 @@ assign_season <- function(df, datetime_col, seasons,
                           herd = "wah",
                           tz = "UTC",
                           year_ref = 2000,
-                          season_col = "season",
-                          keep_bounds = FALSE) {
+                          season_col = "season") {
   
   # df: data.frame
   # datetime_col: unquoted column name containing POSIXct
@@ -479,57 +478,36 @@ assign_season <- function(df, datetime_col, seasons,
   # tz: timezone used for extracting month/day from POSIXct
   # year_ref: fixed leap year to support Feb 29 (2000 is leap)
   # keep_bounds: optionally attach computed start/end doy columns
-  
-  datetime_col <- rlang::ensym(datetime_col)
-  
-  s <- as.data.frame(seasons, stringsAsFactors = FALSE)
-  if (ncol(s) < 3) stop("`seasons` must have 3 columns: season, start, end")
-  names(s)[1:3] <- c("season", "start", "end")
-  
-  s$start_doy <- md_to_doy(s$start,year_ref)
-  s$end_doy   <- md_to_doy(s$end,year_ref)
-  
+
   # Extract day-of-year from POSIXct using same reference year
   # (we only need month/day; year_ref is just a vehicle)
-  dt <- df[[rlang::as_string(datetime_col)]]
-  if (!inherits(dt, "POSIXt")) stop("`datetime_col` must be POSIXct/POSIXlt.")
-  
+  df=as.data.frame(df)
+  dt <- df[,which(colnames(df)==datetime_col)]
+
   # Convert to month-day in tz, then to doy in year_ref
-  md <- format(dt, format = "%m-%d", tz = tz)
-  doy <- md_to_doy(md,year_ref)
+  doy <- lubridate::yday(dt)
+
+  season_out <- rep(NA, length(doy))
   
-  # Build an assignment vector (first match wins)
-  season_out <- rep(NA_character_, length(doy))
-  
-  for (i in seq_len(nrow(s))) {
-    st <- s$start_doy[i]; en <- s$end_doy[i]
+  for (i in seq_len(nrow(seasons))) {
+    st <- seasons$start[i]
+    en <- seasons$end[i]
     hit <- if (st <= en) {
       doy >= st & doy <= en
     } else {
       # wraps across Dec 31 -> Jan 1
       doy >= st | doy <= en
     }
-    season_out[is.na(season_out) & hit] <- s$season[i]
+    season_out[is.na(season_out) & hit] <- seasons$season[i]
   }
   
   df[[season_col]] <- season_out
   
   df[df$herd!=herd,]$season<-NA
-  
-  if (keep_bounds) {
-    attr(df, "season_bounds") <- s
-  }
-  df
+
+  return(df)
 }
 
-#Helper function for assign_season
-# Parse "MM-DD" into day-of-year using a fixed reference year
-md_to_doy <- function(md,year_ref) {
-  # allow "MM-DD" or "MM/DD"
-  md <- gsub("/", "-", md)
-  d <- as.Date(paste0(year_ref, "-", md))
-  as.integer(strftime(d, format = "%j"))
-}
 
 ### Output intersections with period (before, after etc.) for each set ------
 FormatClusterSets<-function(geo_cs,ints_its){
