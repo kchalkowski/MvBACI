@@ -1068,3 +1068,26 @@ ForestPlot_MovePars<-function(movepairs,response="sigma"){
   return(p1)
 }
   
+Check_Dupl_Trt<-function(movepairs,pgeo){
+  #subset to treatments
+  trt=movepairs[movepairs$type=="trt",]
+  
+  #get year from pgeo, join to movepairs
+  pgeo$year=lubridate::year(pgeo$group_start)
+  pg=unique(pgeo[,c(which(colnames(pgeo)=="segID"),
+                    which(colnames(pgeo)=="year"))])
+  trt1=left_join(trt,pg,by="segID")
+  
+  #Do any caribou interact with a road within the same season
+  #resulting in two treatments from the same animal, year, and season
+  #if so, there would be n>1 for the below result
+  summ=trt1 %>% filter(period=="during") %>%
+    dplyr::group_by(uniqueid,year,season) %>% 
+    dplyr::summarise(n=n())
+  
+  return(any(summ$n>1))
+  
+}
+
+
+
