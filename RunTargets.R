@@ -14,19 +14,6 @@ tar_manifest()
 #Make pipeline
 tar_make()
 
-baci_sigma<-tar_read(baci_sigma)
-baci_beta<-tar_read(baci_beta)
-baci_vx<-tar_read(baci_vx)
-baci_vy<-tar_read(baci_vy)
-
-ggsave("./Plots/baci_intxn_plots/baci_sigma.png",
-       plot=baci_sigma)
-ggsave("./Plots/baci_intxn_plots/baci_beta.png",
-       plot=baci_beta)
-ggsave("./Plots/baci_intxn_plots/baci_vx.png",
-       plot=baci_vx)
-ggsave("./Plots/baci_intxn_plots/baci_vy.png",
-       plot=baci_vy)
-
-
-
+#pg=pgeo[pgeo$period=="during"&pgeo$type=="trt",]
+#pg=st_as_sf(pg,coords=c("x_","y_"),crs=st_crs(6393))
+#mapview(pg,alpha=0.1)+mapview(rd1f)+mapview(rd2f,color="red")

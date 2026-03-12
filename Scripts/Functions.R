@@ -5,6 +5,24 @@ ReadRDS<-function(path,filename){
   readRDS(file.path(path,filename))
 }
 
+Filter_Roads<-function(roads1,filter){
+  roads1 %>% st_cast("LINESTRING")
+  
+  rd1=roads1 %>% filter(dataset=="roads")
+  rd2=roads1 %>% filter(dataset=="north_slope")
+  rd3=roads1 %>% filter(dataset=="taps")
+  
+  rd1l=rd1 %>% st_cast("LINESTRING")
+  rd1l$lengths=as.numeric(st_length(rd1l))
+  rd1f=rd1l[rd1l$lengths>=filter,]
+  
+  rd2$lengths=as.numeric(st_length(rd2))
+  rd2f=rd2[rd2$lengths>=filter,]
+  roads_out=rbind(rd1f,rd2f)
+  return(roads_out)
+}
+
+
 ### Read and format north slope spatial data ------
 ReadFormatNS<-function(Input_folder){
   
@@ -222,19 +240,29 @@ ProcessTrtCtrl<-function(rb_summary_list,
                          herd="wah",
                          seasons,
                          t_=t_){
-  #tar_target(geo_c,SetRoadIntID(rb_summary_list))
+  
+  #Get unique IDs for each road interaction
   geo_c=SetRoadIntID(rb_summary_list)
-  #tar_target(ints,DescribeRoadInts(geo_c)),
+  
+  #Filter out by herd
+  geo_c=geo_c[geo_c$herd==herd,]
+  
+  #Get durations before and after each road interaction
   ints=DescribeRoadInts(geo_c)
-  #tar_target(ints_its,FilterInts(ints,filter_before=28,filter_after=28)),
+  
+  #Filter road interactions based on duration filters set
   ints_its=FilterInts(ints,filter_before,filter_after)
-  #tar_target(ctrls,FindCtrlGroups(geo_c,84)),
+  
+  #Find control groups using control filter
   ctrls=FindCtrlGroups(geo_c,ctrl_filter)
-  #tar_target(geo_cs,assign_season(geo_c,t_,seasons,herd="wah")),
-  geo_cs=assign_season(geo_c,"t_",seasons,herd) #character string is not in a standard unambiguous format
-  #tar_target(its_seq,FormatClusterSets(geo_cs,ints_its)),
+  
+  #Assign seasons using seasons df input
+  geo_cs=assign_season(geo_c,"t_",seasons,herd)
+  
+  #
   its_seq=FormatClusterSets(geo_cs,ints_its)
-  #tar_target(geo_ctrls,FormatCtrls(geo_cs,ctrls)),
+  
+  #
   geo_ctrls=FormatCtrls(geo_cs,ctrls) 
   
   return(list("trt"=its_seq,
@@ -358,11 +386,11 @@ setclusterID<-function(dat){
 DescribeRoadInts<-function(geo_c){
     clusters=
       geo_c %>% 
-    dplyr::group_by(herd,uniqueid,int,clustID) %>%
     dplyr::summarise(mint=min(t_),
                      maxt=max(t_),
                      difft=difftime(max(t_),min(t_),units="hours"),
-                     nlocs=n()) %>%
+                     nlocs=n(),
+                     .by = c(herd, uniqueid, int, clustID)) %>%
     dplyr::arrange(herd,uniqueid,mint)
   
     #for each intersection, get time durations before and after next intersection
@@ -400,7 +428,7 @@ DescribeRoadInts<-function(geo_c){
           cdurs_i$dur_after=0
         }
 
-        if(i==1&c==1){
+        if(!exists("cdurs")){
           cdurs=cdurs_i
         } else{
           cdurs=rbind(cdurs,cdurs_i)
@@ -443,11 +471,11 @@ FindCtrlGroups<-function(geo_c,ctrl_filter){
   
   clusters=
     geonr %>% 
-    dplyr::group_by(herd,uniqueid,clustID) %>%
     dplyr::summarise(mint=min(t_),
                      maxt=max(t_),
                      difft=difftime(max(t_),min(t_),units="hours"),
-                     nlocs=n()) %>%
+                     nlocs=n(),
+                     .by = c(herd, uniqueid, clustID)) %>%
     dplyr::arrange(herd,uniqueid,mint)
   
   #make days column
@@ -492,19 +520,12 @@ assign_season <- function(df, datetime_col, seasons,
   for (i in seq_len(nrow(seasons))) {
     st <- seasons$start[i]
     en <- seasons$end[i]
-    hit <- if (st <= en) {
-      doy >= st & doy <= en
-    } else {
-      # wraps across Dec 31 -> Jan 1
-      doy >= st | doy <= en
-    }
+    hit <- doy >= st & doy <= en
     season_out[is.na(season_out) & hit] <- seasons$season[i]
   }
   
   df[[season_col]] <- season_out
   
-  df[df$herd!=herd,]$season<-NA
-
   return(df)
 }
 
@@ -596,227 +617,16 @@ FormatCtrls<-function(geo_cs,ctrls,herd="wah"){
   
 } #function closing bracket
 
-## 4. Match control and treatment trajectories ------
-
-### Determine overlap times between each treatment and control trajectory ----
-Match_Ctrl_Trt<-function(its_seq,geo_ctrls){
-  durations=FindOverlapDurations(its_seq,geo_ctrls)
-  pairs=Hungarian_matching(durations)
-  pgeo=Filter_Pairs(its_seq,geo_ctrls,pairs)
-  
-  return(pgeo)
-}
-
-#Helper function for Match_Ctrl_Trt
-FindOverlapDurations<-function(its_seq,geo_ctrls){
-  
-  trt=its_seq %>% dplyr::group_by(trajID,period) %>% dplyr::mutate(min.seg.t=min(t_),max.seg.t=max(t_))
-  trt=trt %>% dplyr::group_by(trajID) %>% dplyr::mutate(min.traj.t=min(t_),max.traj.t=max(t_))
-  ctrl=geo_ctrls %>% dplyr::group_by(trajID) %>% dplyr::mutate(min.traj.t=min(t_),max.traj.t=max(t_))
-  
-  trt=unique(trt[,c(which(colnames(trt)=="trajID"),
-                    which(colnames(trt)=="period"),
-                    which(colnames(trt)=="min.seg.t"),
-                    which(colnames(trt)=="max.seg.t"),
-                    which(colnames(trt)=="min.traj.t"),
-                    which(colnames(trt)=="max.traj.t")
-  )]
-  )
-  
-  ctrl=unique(ctrl[,c(which(colnames(ctrl)=="trajID"),
-                      which(colnames(ctrl)=="period"),
-                      which(colnames(ctrl)=="min.traj.t"),
-                      which(colnames(ctrl)=="max.traj.t")
-  )]
-  )
-  
-  result <- ctrl %>%
-    dplyr::rename(ctrl_id = trajID, ctrl_start = min.traj.t, ctrl_end = max.traj.t) %>%
-    dplyr::cross_join(trt %>% rename(trt_id = trajID, trt_period = period, trt_start = min.seg.t, trt_end = max.seg.t)) %>%
-    dplyr::mutate(overlap_days = overlap_duration(ctrl_start, ctrl_end, trt_start, trt_end)) %>%
-    dplyr::select(ctrl_id, trt_id, trt_period, ctrl_start, ctrl_end, trt_start, trt_end, overlap_days)
-  
-  res.total=result %>% group_by(ctrl_id,trt_id) %>% dplyr::summarise(overlaps=sum(overlap_days),po=sum(overlap_days==0))
-  res.filt=res.total[res.total$overlaps>0&res.total$po==0,]
-  
-}
-
-#Helper function for Match_Ctrl_Trt
-overlap_duration <- function(s1, e1, s2, e2) {
-  overlap_start <- pmax(s1, s2)
-  overlap_end   <- pmin(e1, e2)
-  duration      <- pmax(0, difftime(overlap_end,overlap_start,units="days"))
-  return(duration)
-}
-
-#Helper function for Match_Ctrl_Trt
-Hungarian_matching<-function(matches){
-  
-  matches$ctrl_id<-as.character(matches$ctrl_id)
-  matches$trt_id<-as.character(matches$trt_id)
-  matches$overlaps<-as.numeric(matches$overlaps)
-  
-  #need remove row/colnames
-  Wmat=data.table::dcast(as.data.table(matches,keep.rownames=FALSE),ctrl_id~trt_id,value.var="overlaps")
-  Wmat=as.matrix(Wmat)
-  rownames(Wmat)=Wmat[,1]
-  Wmat=Wmat[,2:ncol(Wmat)]
-  storage.mode(Wmat)="numeric"
-  Wmat[is.na(Wmat)]<-0
-  Wmat=Wmat*-1 #flip the sign, since algo below minimizes cost instead of maximizes weight
-  
-  #Wmat rows are ctrl
-  #Wmat cols are treatment
-  Wmat_optim=HungarianSolver(Wmat)
-  
-  #1st col is treatment
-  #second col is contrl
-  pairs=Wmat_optim$pairs
-  matches<-as.data.frame(matches)
-  #need convert pairs (which has row/col numbers) to IDs
-  pairs=as.data.frame(pairs)
-  colnames(pairs)=c("ctrl","trt")
-  
-  pairs$ctrl=rownames(Wmat)
-  pairs=pairs[pairs$trt>0,]
-  pairs$trt=colnames(Wmat)[pairs$trt]
-  pairs$pairID=paste(pairs$ctrl,pairs$trt,sep="_")
-  matches$pairID=paste(matches$ctrl,matches$trt,sep="_")
-  pairs=left_join(pairs,matches,by="pairID")
-  
-  return(pairs)
-}
-
-#Helper function for Match_Ctrl_Trt
-#combine
-#and get new cutoff dates with just overlap
-#filter geolocation data
-#tar_target(tbl_locs,Filter_Pairs(its_seq2,geo_ctrls2,matches)),
-Filter_Pairs<-function(its_seq,geo_ctrls,pairs){
-  its_seq$type="trt"
-  geo_ctrls$type="ctrl"
-  geo_ctrls$period="before"
-  its_seq$trajID=as.character(its_seq$trajID)
-  
-  dat=dplyr::bind_rows(geo_ctrls,its_seq)
-  dat_summary=dat %>% dplyr::group_by(trajID) %>% dplyr::summarise(mint=min(t_),maxt=max(t_))
-  
-  pairs=pairs[complete.cases(pairs),]
-  colnames(pairs)[2]<-"trajID.trt"
-  colnames(dat_summary)[1]<-"trajID.trt"
-  pairs2=left_join(pairs,dat_summary,by="trajID.trt")
-  pairs2$trajID.trt=as.character(pairs2$trajID.trt)
-  
-  colnames(pairs2)[1]<-"trajID.ctrl"
-  colnames(dat_summary)[1]<-"trajID.ctrl"
-  pairs2$trajID.ctrl=as.character(pairs2$trajID.ctrl)
-  pairs3=left_join(pairs2,dat_summary,by="trajID.ctrl",suffix=c(".trt",".ctrl"))
-  
-  pairs3$overlap.start=apply(pairs3[,c(which(colnames(pairs3)=="mint.trt"),
-                                       which(colnames(pairs3)=="mint.ctrl"))],1,max)
-  pairs3$overlap.end=apply(pairs3[,c(which(colnames(pairs3)=="maxt.trt"),
-                                     which(colnames(pairs3)=="maxt.ctrl"))],1,min)
-  
-  pairs3$overlap.dur=difftime(pairs3$overlap.end,pairs3$overlap.start)
-  
-  joinID=unique(pairs3[,c(which(colnames(pairs3)=="trajID.trt"),
-                          which(colnames(pairs3)=="pairID"),
-                          which(colnames(pairs3)=="overlap.start"),
-                          which(colnames(pairs3)=="overlap.end")
-  )])
-  colnames(joinID)[1]="trajID"
-  dat2=left_join(its_seq,joinID,by="trajID")
-  dat2=dat2[complete.cases(dat2),]
-  
-  joinID=unique(pairs3[,c(which(colnames(pairs3)=="trajID.ctrl"),
-                          which(colnames(pairs3)=="pairID"),
-                          which(colnames(pairs3)=="overlap.start"),
-                          which(colnames(pairs3)=="overlap.end")
-  )])
-  colnames(joinID)[1]="trajID"
-  dat2c=left_join(geo_ctrls,joinID,by="trajID")
-  dat2c=dat2c[complete.cases(dat2c),]
-  
-  dat3=dplyr::bind_rows(dat2,dat2c)
-  
-  dat4=dat3[dat3$t_>=dat3$overlap.start&dat3$t_<=dat3$overlap.end,]
-  
-  summarize_np=dat4 %>% dplyr::group_by(pairID) %>% dplyr::summarise(n_distinct(period))
-  summarize_np=summarize_np[summarize_np$`n_distinct(period)`==3,]
-  
-  dat5=dat4[dat4$pairID%in%summarize_np$pairID,]
-  
-  trt=dat5[dat5$type=="trt",]
-  ctrl=dat5[dat5$type=="ctrl",]
-  
-  trt <- trt %>%
-    group_by(pairID, period) %>%  # add whatever grouping vars you have
-    mutate(
-      group_start = min(t_),
-      group_end   = max(t_)
-    ) %>%
-    ungroup() %>%
-    # Assign a unique group ID per distinct group
-    mutate(group_uid = consecutive_id(pairID, period))
-  
-  ctrl <- ctrl %>%
-    left_join(
-      trt %>%
-        distinct(pairID, group_uid, group_start, group_end),
-      by = "pairID",
-      relationship = "many-to-many") %>%
-    filter(t_ >= group_start & t_ <= group_end)
-  
-  dat6=dplyr::bind_rows(trt,ctrl)
-  
-  
-  #grouping by group_uid and asking distinct n of type should get 2
-  #ones that not represented in both involve small num pts that don't overlap well with control
-  check_period_overlaps=dat6 %>% dplyr::group_by(pairID,group_uid) %>% dplyr::summarise(nt=n_distinct(type)) 
-  check_period_overlaps=check_period_overlaps[check_period_overlaps$nt!=2,]
-  drop_pairIDs=unique(check_period_overlaps$pairID)
-  
-  dat7=dat6[!(dat6$pairID%in%drop_pairIDs),]
-  
-  #each pairID has matching before, during, after by group_uid
-  #now get the period to match as well
-  
-  dat7n=dat7 %>% dplyr::group_by(pairID,group_uid) %>% tidyr::nest()
-  
-  #assign same period to controls, matching treatment by group_uid
-  dat7n2=dat7n %>% mutate(data=purrr::map(data,changeperiod)) %>% tidyr::unnest(cols=c(data))
-  
-  #Now need redo splits for all, but by pairID,period,season
-  dat7n2$segID=paste(dat7n2$pairID,dat7n2$period,dat7n2$season,sep="_")
-  
-  #each segId should have two types (ctrl, treatment)
-  check2=dat7n2 %>% dplyr::group_by(pairID,period,season,segID) %>% dplyr::summarize(nt=n_distinct(type))
-  check2=unique(check2[,c(which(colnames(check2)=="pairID"),
-                          which(colnames(check2)=="nt"))])
-  check2=check2[check2$nt<2,]
-  drop_pairIDs=check2$pairID
-  
-  #remove pairIDs with only control or treatment for respective season
-  dat_filtered=dat7n2[!(dat7n2$pairID%in%drop_pairIDs),]
-  #check=dat_filtered %>% dplyr::group_by(segID) %>% dplyr::summarise(nt=n_distinct(type))
-  
-  return(dat_filtered)
-  
-}
-
-#Helper function for Filter_Pairs
-changeperiod=function(df){
-  df[df$type=="ctrl",which(colnames(df)=="period")]=
-    df[df$type=="trt",which(colnames(df)=="period")][[1]][1]
-  return(df)
-}
 
 ## 5. Fit movement models ----
 #Runs movement models, calculates mean velocity, returns tidy output
 GetMovementParameters<-function(pgeo,herd="wah",minrow=10){
   geo=pgeo[pgeo$herd==herd,]
   
-  check=geo %>% dplyr::group_by(pairID,segID) %>% dplyr::summarise(n_distinct(type))
+  check=geo %>% 
+    ungroup() %>%
+    dplyr::summarise(n_distinct(type),
+                     .by=c(pairID,segID))
   
   sf_locs=sf::st_as_sf(geo,coords=c("x_","y_"),crs=sf::st_crs(6393))
   
@@ -1089,5 +899,122 @@ Check_Dupl_Trt<-function(movepairs,pgeo){
   
 }
 
+GetPairSummaries<-function(pgeo1){
+  
+  ####Period alone
+  #get min dists for each pairID
+  pairs=unique(pgeo1$pairID)
+  
+  #during=pgeo1[pgeo1$period=="during",]
+  pgeo1=pgeo1 %>% st_as_sf(coords=c("x_","y_"),crs=st_crs(6393))
+  for(p in 1:length(pairs)){
+    pgeo1_p=pgeo1[pgeo1$pairID==pairs[p],]
+    trt=pgeo1_p[pgeo1_p$type=="trt",]
+    ctrl=pgeo1_p[pgeo1_p$type=="ctrl",]
+    
+    summary_p=
+      pgeo1_p %>% dplyr::group_by(period) %>%
+      dplyr::summarise(mint=min(t_),
+                       maxt=max(t_)) %>%
+      st_drop_geometry()
+    
+    summary_p$mindist=NA
+    summary_p[summary_p$period=="during",]$mindist=
+      min(st_distance(trt[trt$period=="during",],ctrl[ctrl$period=="during",]))
+    summary_p[summary_p$period=="after",]$mindist=
+      min(st_distance(trt[trt$period=="after",],ctrl[ctrl$period=="after",]))
+    summary_p[summary_p$period=="before",]$mindist=
+      min(st_distance(trt[trt$period=="before",],ctrl[ctrl$period=="before",]))
+    
+    summary_p$pairID=pairs[p]
+    
+    if(p==1){
+      summary=summary_p
+    } else{
+      summary=rbind(summary,summary_p)
+    }
+  }
+    summary_period=summary
+    
+    ####Period and season
+    #get min dists for each pairID
+    pairs=unique(pgeo1$pairID)
+    
+    #during=pgeo1[pgeo1$period=="during",]
+    pgeo1=pgeo1 %>% st_as_sf(coords=c("x_","y_"),crs=st_crs(6393))
+    for(p in 1:length(pairs)){
+      pgeo1_p=pgeo1[pgeo1$pairID==pairs[p],]
+      trt=pgeo1_p[pgeo1_p$type=="trt",]
+      ctrl=pgeo1_p[pgeo1_p$type=="ctrl",]
+      
+      summary_p=
+        pgeo1_p %>%
+        ungroup() %>%
+        dplyr::summarise(mint=min(t_),
+                         maxt=max(t_),
+                         .by=c(period,season),
+                         across(geometry, st_union)) %>%
+        st_drop_geometry()
+      
+      summary_p$mindist=NA
+      summary_p[summary_p$period=="during",]$mindist=
+        min(st_distance(trt[trt$period=="during",],ctrl[ctrl$period=="during",]))
+      summary_p[summary_p$period=="after",]$mindist=
+        min(st_distance(trt[trt$period=="after",],ctrl[ctrl$period=="after",]))
+      summary_p[summary_p$period=="before",]$mindist=
+        min(st_distance(trt[trt$period=="before",],ctrl[ctrl$period=="before",]))
+      
+      summary_p$pairID=pairs[p]
+      
+      if(p==1){
+        summary=summary_p
+      } else{
+        summary=rbind(summary,summary_p)
+      }
+    
+  }
+  #rearrange cols
+  summary=summary[,c(6,1:4)]
+  return(list("period"=summary_period,"period_season"=summary))
+}
 
+VizualizePairSummaries<-function(pair_summaries_list){
+  pair_summaries=pair_summaries_list$period
+  pair_seasons=pair_summaries_list$period_season
+  
+  pair_summaries$mindist<-as.numeric(pair_summaries$mindist)
+ 
+  pair_summaries=pair_summaries %>% dplyr::group_by(pairID) %>%
+    dplyr::mutate(np=n_distinct(period))
+  
+  p1=pair_summaries %>%
+    filter(period=="during") %>%
+    ggplot()+
+    geom_histogram(mapping=aes(x=mindist))+
+    theme(axis.text.y=element_blank())
+  
+  pair_summaries$duration=as.numeric(difftime(pair_summaries$maxt,pair_summaries$mint,units="days"))
+  
+  #breakdown of durations
+  p2=pair_summaries %>%
+    ggplot()+
+    geom_point(mapping=aes(x=duration,y=pairID,color=period))+
+    theme(axis.text.y=element_blank())
+  
+  #next: want to see how much data per season
+    #-season x period per pair
+    #heat map
+  ps=pair_seasons %>% dplyr::group_by(period,season) %>%
+    dplyr::summarise(num=n())
+  p3=ps %>% ggplot()+geom_tile(mapping=aes(x=period,y=season,fill=num))
+  
+  return(list("mindists"=p1,"durations"=p2,"sample_sizes"=p3))
+}
 
+TrimPairDistances<-function(pgeo,pair_summaries,mindist){
+  during=pair_summaries[pair_summaries$period=="during",]
+  during$mindist=as.numeric(during$mindist)
+  keep_pairs=during[during$mindist<=90000,]$pairID
+  pgeo_f=pgeo[pgeo$pairID%in%keep_pairs,]
+  return(pgeo_f)
+}

@@ -39,7 +39,10 @@ tar_option_set(packages = c("tidyr",
                             "furrr",
                             "forcats",
                             "RcppHungarian",
-                            "data.table"))
+                            "data.table",
+                            "fmesher",
+                            "INLA",
+                            "spdep"))
 
 # Pipeline ---------------------------------------------------------
 
@@ -79,7 +82,8 @@ list(
     #from northslope data, removing first couple layers that are small pads/runway features
     #Inputs: AK roads and North Slope shapefiles
     #Outputs: roads1, sf data frame with all roads
-  tar_target(roads1,MergeShapefiles(roads0,nsdat)),
+  tar_target(roads01,MergeShapefiles(roads0,nsdat)),
+  tar_target(roads1,Filter_Roads(roads01,filter=10000)),
   
   ### Remove caribou with < 16 weeks of data ---------
     #Inputs: 
@@ -116,18 +120,8 @@ list(
                                                         roadbuffs,
                                                         geo1,
                                                         test=FALSE)),
-
+  
   ## 3. Identify treatment and control trajectories -------------
-  
-  ### Make season matrix ------
-  #Makes matrix to assign seasons
-  #Input: matrix with season names, start dates, and end dates of each season, all dates are strings in MM/DD format
-  #Output: same as input
-  #tar_target(seasons,MakeSeasons(seasons=c("calving","insect","latesummer","fallmigr","winter","springmigr"),
-  #                               strt.dts=c("05/28","06/15","07/15","09/01","12/01","04/01"),
-  #                               end.dts=c("06/14","07/14","08/31","11/30","03/31","05/27")
-  #)),
-  
   #Find road interactions (treatment traj)
   #Summarise durations before, during and after road interactions
   #Filter treatment trajectories by before/after durations
@@ -143,14 +137,27 @@ list(
                                   seasons,
                                   t_=t_)),
   
+  ## 3. Calculate spatiotemporally weighted propensity scores ------
+  ### -Discrete time period, e.g. year/season
+  ### -Assign each time segment to a spatial grid and build a neighborhood graph
+  ### -Extract spatial covariates that would predict a road interaction
+        #e.g. distance to nearest road
+  ### -Assemble model dataframe
+        #one row per animal per trajectory segment
+        #in current structure with season, don't need previous time period-- considering them independent
+          #this may be needed if using daily, weekly, monthly, etc.
+  ### -Run propensity score model
+  ### *note: currently, duplicate uniqueid between trt/ctrl filters out controls. may want to make this more dynamic/flexible or use other filtering criteria to decide which to keep.
+  tar_target(propscore.list,DoPropScoring(trt_ctrl,grid_resolution=100000)),
+  
   ## 4. Match control and treatment trajectories ------
   ### Determine overlap times between each treatment and control trajectory 
   ### Use Hungarian matching to reach global maximum overlap 
   ### Filter trailing end of each pair, and unpaired traj
-  tar_target(pgeo,Match_Ctrl_Trt(trt_ctrl$trt,trt_ctrl$ctrl)),
-  
-  ### Check for correlated movement paths
-  
+  tar_target(pgeo,Match_Ctrl_Trt(trt_ctrl$trt,trt_ctrl$ctrl,propscore.list$model_df)),
+  tar_target(pair_summaries,GetPairSummaries(pgeo)),
+  tar_target(pair_summary_plots,VizualizePairSummaries(pair_summaries)),
+
   ## 5. Fit movement models ----
   ### Runs movement models, calculates mean velocity, returns tidy output
   tar_target(movepairs,GetMovementParameters(pgeo,"wah")),
@@ -166,19 +173,20 @@ list(
   ## 6. Visualization --------
   
   ### Forest plots of movement parameters and high/low conf intervals
-  tar_target(sigma_for,BACI_intxn_plot(movepairs,"sigma")),
-  tar_target(beta_for,BACI_intxn_plot(movepairs,"beta")),
+  #tar_target(sigma_for,BACI_intxn_plot(movepairs,"sigma")),
+  #tar_target(beta_for,BACI_intxn_plot(movepairs,"beta")),
   
   ### Baci interaction plots
   tar_target(baci_sigma,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
   tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln beta (Intercept)`")),
   tar_target(baci_vx,BACI_intxn_plot(movepairs,"vx")),
-  tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy")),
+  tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy"))#,
   
   ### Data summaries
-  tar_target(any_dupl_trt,Check_Pseudo_Trt(movepairs,pgeo))
-  
+  #tar_target(any_dupl_trt,Check_Pseudo_Trt(movepairs,pgeo))
+
   ### Summarize road interactions in data
   #which roads, how many times represented, etc.
+  
   
   )
