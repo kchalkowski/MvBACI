@@ -42,7 +42,11 @@ tar_option_set(packages = c("tidyr",
                             "data.table",
                             "fmesher",
                             "INLA",
-                            "spdep"))
+                            "spdep",
+                            "smoove",
+                            "magrittr",
+                            "plyr",
+                            "scales"))
 
 # Pipeline ---------------------------------------------------------
 
@@ -160,8 +164,11 @@ list(
 
   ## 5. Fit movement models ----
   ### Runs movement models, calculates mean velocity, returns tidy output
-  tar_target(movepairs,GetMovementParameters(pgeo,"wah")),
-
+  tar_target(movepairs,GetMovementParameters(pgeo,minrow=10)),
+  tar_target(movepairs2,GetChangePoints(movepairs)),
+  tar_target(movepairs3,Tidy_Move_Pairs(movepairs2))#,
+  
+  
   ### Evaluate movement model fits
   
   ### Check BACI assumptions
@@ -177,10 +184,10 @@ list(
   #tar_target(beta_for,BACI_intxn_plot(movepairs,"beta")),
   
   ### Baci interaction plots
-  tar_target(baci_sigma,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
-  tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln beta (Intercept)`")),
-  tar_target(baci_vx,BACI_intxn_plot(movepairs,"vx")),
-  tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy"))#,
+  #tar_target(baci_sigma,BACI_intxn_plot(movepairs,"`estimate_ln sigma (Intercept)`")),
+  #tar_target(baci_beta,BACI_intxn_plot(movepairs,"`estimate_ln beta (Intercept)`")),
+  #tar_target(baci_vx,BACI_intxn_plot(movepairs,"vx")),
+  #tar_target(baci_vy,BACI_intxn_plot(movepairs,"vy"))#,
   
   ### Data summaries
   #tar_target(any_dupl_trt,Check_Pseudo_Trt(movepairs,pgeo))
